@@ -3,11 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>0교시 시험 트래커</title>
+<title>트임파닉스쿨 시험</title>
 <meta name="robots" content="noindex">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="0교시">
-<meta name="theme-color" content="#FBFBF8">
+<meta name="apple-mobile-web-app-title" content="트임시험">
+<meta name="theme-color" content="#3C7D69">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
 <style>
   :root{
     --paper:#FBFBF8; --grid:#E2E1D6; --ink:#1B1B18; --ink-soft:#6E6D62;
@@ -85,6 +88,7 @@
   .thumbs{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
   .th{position:relative;display:inline-block}
   .th img{width:74px;height:74px;object-fit:cover;border:1px solid var(--grid);border-radius:3px;background:#fff;cursor:zoom-in}
+  .thx.arm{border-color:var(--red);color:var(--red);font-weight:700}
   .thx{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;border:1px solid var(--grid);background:#fff;font-size:11px;line-height:1;cursor:pointer;padding:0;color:var(--ink-soft)}
   #lb{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:60;display:none;align-items:center;justify-content:center;padding:12px}
   #lb.on{display:flex}
@@ -153,7 +157,7 @@
       <button class="chip" id="btoday">오늘</button>
       <button class="chip" id="btmr">내일</button>
       <input type="date" id="dpick" class="chip" style="padding:4px 10px">
-      <button class="chip" id="bsync">새로고침</button>
+      <button class="chip" id="bsync">최신으로</button>
     </div>
     <div class="tabs">
       <button class="tab on" data-t="day">그날 시험</button>
@@ -410,6 +414,7 @@ function resolve(it,date){
     if(parse(date).getDay()!==it.wd)return null;
     if(it.from&&date<it.from)return null;
     if(it.skip&&it.skip.indexOf(date)>=0)return null;
+    if(it.hide&&it.hide.indexOf(date)>=0)return null;
   }
   const o={it,kind:it.kind,cls:it.cls,n:it.n||0,sure:it.sure!==false,note:it.note||'',label:it.label||'',book:it.book||'',src:it.src||''};
   if(it.base!=null&&it.anchor){
@@ -536,8 +541,8 @@ function rowHTML(r){
   if(r.kind==='vocab')h+='<button class="check" data-got="'+id+'">'+(e.got?'✓':'')+'</button>';
   h+='<div class="code">'+esc(r.cls)+'</div>';
   h+= prints(r)
-    ? '<button class="qty'+(edited?' edited':'')+'" data-qty="'+id+'">'+q+'장</button>'
-    : '<button class="qty" data-qty="'+id+'" style="opacity:.55">'+q+'명</button>';
+    ? '<button class="qty'+(edited?' edited':'')+'" data-edt="qty|'+id+'">'+q+'장</button>'
+    : '<button class="qty" data-edt="qty|'+id+'" style="opacity:.55">'+q+'명</button>';
   h+='</div><div class="what">'+content(r)+'</div>';
   if(r.note)h+='<div class="meta">'+esc(r.note)+'</div>';
   if(!r.sure)h+='<div class="meta warn">확인 필요</div>';
@@ -564,7 +569,8 @@ function rowHTML(r){
   if((e.imgs||[]).length){
     h+='<div class="thumbs">'+e.imgs.map((v,i)=>
       '<span class="th"><img src="'+esc(imgSrc(v))+'" data-big="'+esc(imgSrc(v))+'" alt="답지">'
-      +'<button class="thx" data-delimg="'+id+'|'+i+'">✕</button></span>').join('')+'</div>';
+      +'<button class="thx'+(armed==='img'+id+i?' arm':'')+'" data-delimg="'+id+'|'+i+'">'
+      +(armed==='img'+id+i?'!':'✕')+'</button></span>').join('')+'</div>';
   }
   const acts=[];
   acts.push('<button class="notebtn" data-img="'+id+'">답지 사진'+((e.imgs||[]).length?' '+e.imgs.length+'장':' 넣기')+'</button>');
@@ -573,17 +579,42 @@ function rowHTML(r){
     if(left.length&&left.length<r.it.names.length)
       acts.push('<button class="notebtn" data-next="'+id+'">남은 '+left.length+'명 '+roundName((r.it.round||1)+1)+' 잡기</button>');
   }
-  if(r.num!=null)acts.push('<button class="notebtn" data-fix="'+id+'">'+r.ul+' 번호 고치기</button>');
+  if(r.num!=null)acts.push('<button class="notebtn" data-edt="num|'+id+'">'+r.ul+' 번호 고치기</button>');
   acts.push('<button class="notebtn'+(e.note?' has':'')+'" data-open="'+id+'">'+(e.note?'특이사항 있음':'특이사항 적기')+'</button>');
   acts.push('<button class="notebtn" data-rt="'+id+'">재시험 잡기</button>');
+  acts.push('<button class="notebtn" data-edt="move|'+id+'">다른 날로 옮기기</button>');
   acts.push(r.it.once
-    ? '<button class="notebtn" data-del="'+id+'">이 시험 지우기</button>'
-    : '<button class="notebtn" data-skip="'+id+'">이 날은 건너뛰기</button>');
+    ? '<button class="notebtn" data-edt="del|'+id+'">이 시험 지우기</button>'
+    : '<button class="notebtn" data-edt="skip|'+id+'">이 날은 건너뛰기</button>');
   h+='<div class="acts">'+acts.join('')+'</div>';
+  if(edt&&edt.id===id)h+=edtPanel(r);
   if(rtOpen===id)h+=rtPanel(r);
   if(open[id]||e.note)
     h+='<textarea class="memo" data-note="'+id+'" placeholder="결석 / 시험 안 봄 / 재시험 대상 / 지난주 못 본 애">'+esc(e.note||'')+'</textarea>';
   return h+'</div>';
+}
+
+function edtPanel(r){
+  if(!edt||edt.id!==r.it.id)return '';
+  const t=edt.type, e=entry(sel,r.it.id);
+  const box=(inner,okTxt)=>'<div class="rt">'+inner
+    +'<div class="toolbar" style="margin:8px 0 0"><button class="btn" data-eok="1">'+okTxt+'</button>'
+    +'<button class="btn ghost" data-eno="1">취소</button></div></div>';
+  if(t==='move')
+    return box('<div class="fields" style="margin:0"><div><label>언제로 옮길까요</label>'
+      +'<input type="date" id="ev" value="'+esc(edt.v||shift(sel,1))+'"></div></div>', '옮기기');
+  if(t==='num')
+    return box('<div class="fields" style="margin:0"><div><label>이 날 실제 '+(r.ul||'Day')+' 번호</label>'
+      +'<input type="number" id="ev" value="'+esc(edt.v!=null?edt.v:r.num)+'"></div></div>', '번호 바꾸기');
+  if(t==='qty')
+    return box('<div class="fields" style="margin:0"><div><label>이 날 뽑을 장수 (반 '+(r.n||0)+'명)</label>'
+      +'<input type="number" id="ev" value="'+esc(edt.v!=null?edt.v:qtyOf(r))+'"></div></div>', '장수 바꾸기');
+  if(t==='del')
+    return box('<div style="font-size:13px">이 시험을 지울까요?</div>', '지우기');
+  if(t==='skip')
+    return box('<div style="font-size:13px">이 날은 이 시험을 안 보는 걸로 할까요?<br>'
+      +'<span style="color:var(--ink-soft)">교재 Day가 한 주 밀립니다. 날짜만 바꾸는 거면 「다른 날로 옮기기」를 쓰세요.</span></div>', '건너뛰기');
+  return '';
 }
 
 function rtPanel(r){
@@ -754,7 +785,7 @@ function viewSet(){
   const act=cfg.items;
   let h='<div class="note">'+(WORKER?'이 설정은 <b>링크를 가진 선생님 모두가 같이 보고 고칩니다.</b> (v'+SEEDV+' · rev '+rev+')':'지금은 <b>내 브라우저에만</b> 저장돼요. 파일 맨 위 WORKER 주소를 채우면 다 같이 쓰게 됩니다.')+' 한 줄을 누르면 그 시험만 펼쳐서 고칠 수 있어요. <b class="warn">확인</b>은 제가 확신 못 한 부분, <b class="warn">안 봄</b>은 시험을 안 보는 반(회색)이에요.</div>'
    +'<div class="toolbar"><button class="btn ghost" data-export="1">백업 복사</button>'
-   +'<button class="btn danger" data-reset="1">처음 상태로</button></div>';
+   +'<button class="btn danger" data-reset="1">'+(armed==='reset'?'정말 되돌릴까요?':'처음 상태로')+'</button></div>';
   for(let w=1;w<=5;w++){
     const list=act.filter(i=>!i.once&&i.wd===w).sort((a,b)=>cidx(a.cls)-cidx(b.cls)||a.cls.localeCompare(b.cls));
     const sheets=list.filter(i=>!i.off&&!(i.noprint||i.kind==='fixed')).reduce((a,i)=>a+(i.n||0),0);
@@ -788,24 +819,6 @@ function wire(){
     entry(sel,t.dataset.val).val=t.value; await saveLog(mo); toast('저장');
   });
   document.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>{open[b.dataset.open]=!open[b.dataset.open];render()});
-  document.querySelectorAll('[data-qty]').forEach(b=>b.onclick=async()=>{
-    const it=cfg.items.find(x=>x.id===b.dataset.qty), e=entry(sel,it.id);
-    const v=prompt('이 날 뽑을 장수 (반 인원 '+(it.n||0)+'명)', e.qty!=null?e.qty:(it.n||0));
-    if(v===null)return; const n=parseInt(v,10); if(isNaN(n))return;
-    e.qty=n; await saveLog(mo); render();
-  });
-  document.querySelectorAll('[data-fix]').forEach(b=>b.onclick=async()=>{
-    const it=cfg.items.find(x=>x.id===b.dataset.fix);
-    const cur=it.base+it.step*weeksBetween(it.anchor,sel);
-    const v=prompt('이 날 실제로 보는 '+(it.ul||(it.kind==='book'?'Day':'Unit'))+' 번호는?',cur); if(v===null)return;
-    const n=parseInt(v,10); if(isNaN(n))return;
-    it.anchor=sel; it.base=n; it.sure=true; await saveCfg(); render(); toast('기준을 다시 맞췄어요');
-  });
-  document.querySelectorAll('[data-skip]').forEach(b=>b.onclick=async()=>{
-    if(!confirm('이 날은 이 시험을 안 보는 걸로 할까요? 교재 Day는 그만큼 밀립니다.'))return;
-    const it=cfg.items.find(x=>x.id===b.dataset.skip);
-    it.skip=(it.skip||[]).concat([sel]); await saveCfg(); render(); toast('건너뛰었어요');
-  });
   const grab=()=>{
     const d=document.querySelector('#rtd'), x=document.querySelector('#rtx'),
           k=document.querySelector('#rtk'), rr=document.querySelector('#rtr');
@@ -833,6 +846,63 @@ function wire(){
     }
     render();
   });
+  document.querySelectorAll('[data-edt]').forEach(b=>b.onclick=()=>{
+    const [type,id]=b.dataset.edt.split('|');
+    edt=(edt&&edt.id===id&&edt.type===type)?null:{id,type,v:null};
+    rtOpen=null; render();
+  });
+  const eno=document.querySelector('[data-eno]');
+  if(eno)eno.onclick=()=>{edt=null;render()};
+  const eok=document.querySelector('[data-eok]');
+  if(eok)eok.onclick=async()=>{
+    const it=cfg.items.find(x=>x.id===edt.id), t=edt.type;
+    const ev=document.querySelector('#ev'), val=ev?ev.value:'';
+    const mo=sel.slice(0,7);
+
+    if(t==='qty'){
+      const n=parseInt(val,10); if(isNaN(n)){toast('숫자를 넣어주세요');return}
+      entry(sel,it.id).qty=n; edt=null; await saveLog(mo); render(); return;
+    }
+    if(t==='num'){
+      const n=parseInt(val,10); if(isNaN(n)){toast('숫자를 넣어주세요');return}
+      const sk=(it.skip||[]).filter(x=>x>it.anchor&&x<sel).length;
+      it.anchor=sel; it.base=n; it.sure=true;
+      if(it.skip)it.skip=it.skip.filter(x=>x>sel);
+      edt=null; await saveCfg(); render(); toast('번호를 다시 맞췄어요'); return;
+    }
+    if(t==='del'){
+      cfg.items=cfg.items.filter(x=>x.id!==it.id); edt=null; await saveCfg(); render(); return;
+    }
+    if(t==='skip'){
+      it.skip=(it.skip||[]).concat([sel]); edt=null; await saveCfg(); render(); toast('건너뛰었어요'); return;
+    }
+    if(t==='move'){
+      const when=val;
+      if(!when){toast('날짜를 골라주세요');return}
+      if(when===sel){toast('같은 날이에요');return}
+      let newId=it.id;
+      if(it.once){ it.once=when; }
+      else{
+        const r=resolve(it,sel);
+        const cp=Object.assign({},it);
+        delete cp.wd; delete cp.from; delete cp.skip; delete cp.hide;
+        cp.id=newId='m'+Date.now(); cp.once=when;
+        if(r&&r.num!=null){ cp.base=r.num; cp.anchor=when; }
+        cfg.items.push(cp);
+        it.hide=(it.hide||[]).concat([sel]);
+      }
+      const from=logs[mo], e=from&&from[sel]&&from[sel][it.id];
+      if(e){
+        await loadLog(when.slice(0,7));
+        const m2=when.slice(0,7);
+        logs[m2][when]=logs[m2][when]||{};
+        logs[m2][when][newId]=e;
+        delete from[sel][it.id];
+        await saveLog(m2);
+      }
+      edt=null; await saveCfg(); await go(when); toast(when.slice(5)+'로 옮겼어요'); return;
+    }
+  };
   document.querySelectorAll('[data-img]').forEach(b=>b.onclick=()=>{
     pendImg=b.dataset.img; $('#imgin').click();
   });
@@ -840,8 +910,9 @@ function wire(){
     $('#lb').querySelector('img').src=im.dataset.big; $('#lb').classList.add('on');
   });
   document.querySelectorAll('[data-delimg]').forEach(b=>b.onclick=async()=>{
-    if(!confirm('이 답지 사진을 지울까요?'))return;
     const [id,i]=b.dataset.delimg.split('|');
+    if(armed!=='img'+id+i){ armed='img'+id+i; render(); toast('한 번 더 누르면 지워져요'); return }
+    armed=null;
     const en=entry(sel,id), v=(en.imgs||[])[+i];
     en.imgs.splice(+i,1);
     if(WORKER&&v&&v.indexOf('data:')!==0){ try{ await fetch(WORKER+'/img?del=1&id='+encodeURIComponent(v)) }catch(e){} }
@@ -936,8 +1007,9 @@ function wire(){
     const it=cfg.items.find(x=>x.id===b.dataset.off); it.off=!it.off; await saveCfg(); render();
   });
   document.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{
-    if(!confirm('이 시험을 지울까요?'))return;
-    cfg.items=cfg.items.filter(x=>x.id!==b.dataset.del); await saveCfg(); render();
+    const id=b.dataset.del;
+    if(armed!=='d'+id){ armed='d'+id; render(); return }
+    armed=null; cfg.items=cfg.items.filter(x=>x.id!==id); await saveCfg(); render();
   });
   document.querySelectorAll('[data-src]').forEach(t=>t.onchange=async()=>{
     cfg.items.find(x=>x.id===t.dataset.src).src=t.value; await saveCfg(); toast('저장'); render();
@@ -958,19 +1030,23 @@ function wire(){
   });
   const add=document.querySelector('[data-add]');
   if(add)add.onclick=async()=>{
-    const cls=prompt('반 이름'); if(!cls)return;
-    const c=cls.trim().toUpperCase();
-    cfg.items.push({id:'u'+Date.now(),cls:c,kind:'vocab',wd:1,n:N[c]||0,sure:true,off:false});
-    await saveCfg(); render();
+    const id='u'+Date.now();
+    cfg.items.push({id,cls:'새 반',kind:'vocab',wd:1,n:0,sure:true,off:false});
+    editing={}; editing[id]=true; await saveCfg(); render();
   };
   const ex=document.querySelector('[data-export]');
   if(ex)ex.onclick=()=>{const s=JSON.stringify(cfg);
     navigator.clipboard?navigator.clipboard.writeText(s).then(()=>toast('복사했어요'),()=>prompt('복사해 두세요',s)):prompt('복사해 두세요',s)};
   const rs=document.querySelector('[data-reset]');
-  if(rs)rs.onclick=async()=>{if(!confirm('설정을 처음 상태로 되돌릴까요?'))return;cfg=seed();await saveCfg();render()};
+  if(rs)rs.onclick=async()=>{
+    if(armed!=='reset'){armed='reset';render();return}
+    armed=null; cfg=seed(); await saveCfg(); render();
+  };
 }
 
 let pendImg=null;
+let edt=null;   // {id,type} — 줄 안에서 바로 고치는 칸
+let armed=null; // 한 번 더 눌러 확인
 $('#imgin').onchange=async e=>{
   const f=e.target.files&&e.target.files[0];
   e.target.value='';
@@ -989,7 +1065,7 @@ let tt;
 function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),1500)}
 
 async function go(d){
-  sel=d; open={}; addOpen=false; rtOpen=null;
+  sel=d; open={}; addOpen=false; rtOpen=null; edt=null; armed=null;
   const mo=sel.slice(0,7);
   await loadLog(mo); await loadLog(prevMonth(mo));
   render();
@@ -1001,6 +1077,32 @@ $('#btmr').onclick=()=>go(shift(ymd(new Date()),1));
 $('#dpick').onchange=e=>{if(e.target.value)go(e.target.value)};
 $('#bsync').onclick=async()=>{await load();await go(sel);toast(WORKER?'다른 선생님이 고친 것까지 불러왔어요':'새로 불러왔어요')};
 document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{tab=t.dataset.t;render()});
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+
+/* ── 자동 동기화 ── */
+const busy=()=>addOpen||rtOpen||edt||armed||Object.keys(open).some(k=>open[k]);
+async function poll(){
+  if(!WORKER||memory||busy())return;
+  if(document.hidden)return;
+  try{
+    const r=await fetch(WORKER+'/load?room='+encodeURIComponent(ROOM),{cache:'no-store'});
+    if(!r.ok)return;
+    const j=await r.json();
+    if((j.rev||0)>rev && j.data){
+      rev=j.rev;
+      if(j.data.cfg&&j.data.cfg.v===SEEDV)cfg=j.data.cfg;
+      if(j.data.logs)logs=j.data.logs;
+      render();
+      toast('다른 분이 고친 내용을 받아왔어요');
+    }
+  }catch(e){}
+}
+setInterval(poll, 15000);
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden)poll() });
+window.addEventListener('focus',poll);
+
 (async()=>{await load();await go(ymd(new Date()))})();
 </script>
 </body>
