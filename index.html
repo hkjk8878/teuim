@@ -46,7 +46,23 @@
 
   .row{border:1px solid var(--grid);border-radius:3px;background:#fff;margin-bottom:6px;padding:10px 12px}
   .row.need{background:linear-gradient(#FFF7B8,#FFF176);border-color:var(--hl-edge)}
+  .row.t-retest{background:#FFE1DB;border-color:#E0A093}
+  .row.t-vocab {background:linear-gradient(#FFF7B8,#FFF176);border-color:var(--hl-edge)}
+  .row.t-blank {background:#D8E9FA;border-color:#93B9DF}
+  .row.t-book  {background:#DCEFD8;border-color:#93C48C}
+  .row.t-each  {background:#E7DDF8;border-color:#B2A0DA}
+  .row.t-self  {background:#EFEFE9;border-color:#CFCEC3}
   .row.done{background:#F4F4EF;border-color:var(--grid);opacity:.6}
+  .sw{display:inline-block;width:11px;height:11px;border-radius:2px;margin-right:6px;vertical-align:-1px;border:1px solid rgba(0,0,0,.18)}
+  .sw.t-retest{background:#FFE1DB}.sw.t-vocab{background:#FFF176}.sw.t-blank{background:#D8E9FA}
+  .sw.t-book{background:#DCEFD8}.sw.t-each{background:#E7DDF8}.sw.t-self{background:#EFEFE9}
+  .wkitem{border-left:3px solid transparent;padding-left:6px}
+  .wkitem.t-retest{border-left-color:#E0A093}
+  .wkitem.t-vocab {border-left-color:var(--hl-edge)}
+  .wkitem.t-blank {border-left-color:#93B9DF}
+  .wkitem.t-book  {border-left-color:#93C48C}
+  .wkitem.t-each  {border-left-color:#B2A0DA}
+  .wkitem.t-self  {border-left-color:#CFCEC3}
   .top{display:flex;gap:9px;align-items:center}
   .check{width:23px;height:23px;flex:0 0 23px;border:1.5px solid var(--ink);border-radius:3px;background:#fff;cursor:pointer;font-size:14px;line-height:21px;text-align:center;padding:0;font-family:inherit;color:var(--ink)}
   .code{font-weight:700;font-size:15px}
@@ -66,6 +82,13 @@
   .nm{font-family:inherit;font-size:13px;padding:5px 10px;border:1px solid var(--grid);border-radius:999px;background:#fff;color:var(--ink-soft);cursor:pointer}
   .nm.on{background:var(--ink);color:#fff;border-color:var(--ink)}
   .nm.ok{background:#1F7A3D;color:#fff;border-color:#1F7A3D}
+  .thumbs{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .th{position:relative;display:inline-block}
+  .th img{width:74px;height:74px;object-fit:cover;border:1px solid var(--grid);border-radius:3px;background:#fff;cursor:zoom-in}
+  .thx{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;border:1px solid var(--grid);background:#fff;font-size:11px;line-height:1;cursor:pointer;padding:0;color:var(--ink-soft)}
+  #lb{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:60;display:none;align-items:center;justify-content:center;padding:12px}
+  #lb.on{display:flex}
+  #lb img{max-width:100%;max-height:100%;object-fit:contain}
   .notebtn{border:1px solid rgba(0,0,0,.2);background:rgba(255,255,255,.65);border-radius:3px;padding:4px 9px;font-family:inherit;font-size:12px;color:var(--ink-soft);cursor:pointer}
   .notebtn:active{background:rgba(0,0,0,.06)}
   .notebtn.has{color:var(--red);border-color:var(--red)}
@@ -142,6 +165,8 @@
 
 <main class="wrap" id="main"></main>
 <div class="toast" id="toast"></div>
+<input type="file" id="imgin" accept="image/*" style="display:none">
+<div id="lb"><img alt=""></div>
 
 <script>
 const DAYK=['일','월','화','수','목','금','토'];
@@ -271,7 +296,7 @@ function seed(){
 const RULES={};
 
 let cfg=seed(), logs={}, sel=null, tab='day', memory=false, open={}, addOpen=false, editing={};
-let rtOpen=null, rtSel={}, rtDate='', rtWhat='', rtRound=1, rtKind='vocab';
+let rtOpen=null, rtSel={}, rtDate='', rtWhat='', rtRound=1, rtKind='vocab', rtAll=false;
 let afCls='', afNew='', afKind='retest', afDate='', afN='', afWhat='', afNote='', afPrint='', afSel={}, afRound=1, afRKind='vocab';
 
 const pad=n=>String(n).padStart(2,'0');
@@ -312,6 +337,39 @@ async function pushAll(){
     toast('다른 분이 먼저 고쳐서 그걸 불러왔어요'); render();
   }else if(j && j.rev){ rev = j.rev }
 }
+
+function shrink(file){
+  return new Promise((ok,no)=>{
+    const fr=new FileReader();
+    fr.onload=()=>{
+      const im=new Image();
+      im.onload=()=>{
+        const max=1500, sc=Math.min(1,max/Math.max(im.width,im.height));
+        const c=document.createElement('canvas');
+        c.width=Math.round(im.width*sc); c.height=Math.round(im.height*sc);
+        c.getContext('2d').drawImage(im,0,0,c.width,c.height);
+        ok(c.toDataURL('image/jpeg',0.72));
+      };
+      im.onerror=no; im.src=fr.result;
+    };
+    fr.onerror=no; fr.readAsDataURL(file);
+  });
+}
+async function upImg(dataUrl){
+  if(!WORKER) return dataUrl;              // 혼자 쓰는 모드면 그대로 저장
+  let r;
+  try{
+    r=await fetch(WORKER+'/img',{method:'POST',
+      headers:{'Content-Type':'application/json'}, body:JSON.stringify({data:dataUrl})});
+  }catch(e){ throw new Error('Worker에 연결이 안 돼요') }
+  if(r.status===404) throw new Error('Worker가 옛날 코드예요. 새 worker.js로 다시 Deploy 해주세요');
+  let j=null;
+  try{ j=await r.json() }catch(e){}
+  if(!r.ok) throw new Error((j&&j.error) ? j.error : ('서버 오류 '+r.status));
+  if(!j||!j.ok) throw new Error((j&&j.error)||'알 수 없는 오류');
+  return j.id;
+}
+const imgSrc=v=> v.indexOf('data:')===0 ? v : WORKER+'/img?id='+v;
 
 async function load(){
   try{
@@ -418,6 +476,14 @@ const $=s=>document.querySelector(s);
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const qtyOf=(r)=>{const e=entry(sel,r.it.id);return e.qty!=null?e.qty:r.n};
 const prints=(r)=>r.kind==='retest'||!(r.it.noprint||r.kind==='fixed');  // 재시험은 늘 다시 뽑음
+function tintOf(r){
+  if(r.kind==='retest')return 't-retest';
+  if(r.kind==='each')return 't-each';
+  if(r.kind==='vocab')return 't-vocab';
+  if(!prints(r))return 't-self';
+  if(r.kind==='blank')return 't-blank';
+  return 't-book';
+}
 const isAsk=(r)=>r.kind==='vocab'||r.kind==='each'||r.kind==='retest';
 const BOOKG=[
   {t:'백지',       f:r=>r.kind==='blank'},
@@ -466,7 +532,7 @@ function render(){
 function rowHTML(r){
   const e=entry(sel,r.it.id), id=r.it.id, k=KIND[r.kind].cls;
   const q=qtyOf(r), edited=e.qty!=null&&e.qty!==r.n;
-  let h='<div class="row '+k+(r.kind==='vocab'&&e.got?' done':'')+'"><div class="top">';
+  let h='<div class="row '+k+' '+tintOf(r)+(r.kind==='vocab'&&e.got?' done':'')+'"><div class="top">';
   if(r.kind==='vocab')h+='<button class="check" data-got="'+id+'">'+(e.got?'✓':'')+'</button>';
   h+='<div class="code">'+esc(r.cls)+'</div>';
   h+= prints(r)
@@ -495,7 +561,13 @@ function rowHTML(r){
     const done=nm.filter(x=>ps[x]).length;
     h+='<div class="meta">통과 '+done+' / '+nm.length+(done===nm.length?' · 다 끝났어요':'')+'</div>';
   }
+  if((e.imgs||[]).length){
+    h+='<div class="thumbs">'+e.imgs.map((v,i)=>
+      '<span class="th"><img src="'+esc(imgSrc(v))+'" data-big="'+esc(imgSrc(v))+'" alt="답지">'
+      +'<button class="thx" data-delimg="'+id+'|'+i+'">✕</button></span>').join('')+'</div>';
+  }
   const acts=[];
+  acts.push('<button class="notebtn" data-img="'+id+'">답지 사진'+((e.imgs||[]).length?' '+e.imgs.length+'장':' 넣기')+'</button>');
   if(r.kind==='retest'&&(r.it.names||[]).length){
     const left=(r.it.names).filter(x=>!(e.pass||{})[x]);
     if(left.length&&left.length<r.it.names.length)
@@ -515,7 +587,9 @@ function rowHTML(r){
 }
 
 function rtPanel(r){
-  const names=roster(r.cls), n=Object.keys(rtSel).filter(k=>rtSel[k]).length;
+  const prev = (r.kind==='retest' && (r.it.names||[]).length) ? r.it.names : null;
+  const names = (prev && !rtAll) ? prev : roster(r.cls);
+  const n=Object.keys(rtSel).filter(k=>rtSel[k]).length;
   let h='<div class="rt"><div class="fields" style="margin:0">'
    +'<div><label>언제 볼까요</label><input type="date" id="rtd" value="'+esc(rtDate)+'"></div>'
    +'<div><label>몇 장</label><input type="number" id="rtn" value="'+(n||1)+'"></div>'
@@ -526,7 +600,12 @@ function rtPanel(r){
      +RCH.map(c=>'<option value="'+c.v+'"'+(rtKind===c.v?' selected':'')+'>'+c.t+'</option>').join('')
      +'</select></div></div>';
   if(names.length){
-    h+='<div style="font-size:11px;color:var(--ink-soft);margin:8px 0 4px">누가 보나요 (여러 명 고를 수 있어요)</div><div class="names">'
+    h+='<div style="font-size:11px;color:var(--ink-soft);margin:8px 0 4px">'
+     +(prev&&!rtAll ? '지난 '+roundName(r.it.round)+' 본 애들 중에서'
+        : '누가 보나요 (여러 명 고를 수 있어요)')
+     +(prev? ' · <button class="notebtn" data-rtall="1" style="padding:2px 7px">'
+        +(rtAll?'지난 시험 본 애들만':'반 전체 보기')+'</button>' : '')
+     +'</div><div class="names">'
      + names.map(nm=>'<button class="nm'+(rtSel[nm]?' on':'')+'" data-rtn2="'+esc(nm)+'">'+esc(nm)+'</button>').join('')
      + '</div>';
   }
@@ -550,16 +629,18 @@ function viewDay(){
   const need=rows.filter(isNeed);
   const mine=rows.filter(r=>!isNeed(r)&&prints(r));
   const self=rows.filter(r=>!isNeed(r)&&!prints(r));
-  const sec=(t,sub,list,empty)=>'<div class="sec"><div class="sec-h"><b>'+t+'</b><span>'+sub+'</span></div>'
+  const sec=(t,sub,list,empty,tint)=>'<div class="sec"><div class="sec-h"><b>'
+    +(tint?'<span class="sw '+tint+'"></span>':'')+t+'</b><span>'+sub+'</span></div>'
     +(list.length?list.map(rowHTML).join(''):'<div class="empty">'+empty+'</div>')+'</div>';
   const rt=need.filter(r=>r.kind==='retest'), nd=need.filter(r=>r.kind!=='retest');
-  if(rt.length)h+=sec('재시험', '못 본 애들 · '+rt.reduce((a,r)=>a+qtyOf(r),0)+'장', rt, '없음');
-  h+=sec('단어', '애들이 알려줘야 함 · '+nd.reduce((a,r)=>a+qtyOf(r),0)+'장', nd, '없음');
+  if(rt.length)h+=sec('재시험', '못 본 애들 · '+rt.reduce((a,r)=>a+qtyOf(r),0)+'장', rt, '없음', 't-retest');
+  h+=sec('단어', '애들이 알려줘야 함 · '+nd.reduce((a,r)=>a+qtyOf(r),0)+'장', nd, '없음', 't-vocab');
   BOOKG.forEach(g=>{
     const list=mine.filter(r=>bookGroup(r)===g.t);
-    if(list.length)h+=sec(g.t, '그대로 뽑으면 됨 · '+list.reduce((a,r)=>a+qtyOf(r),0)+'장', list, '없음');
+    if(list.length)h+=sec(g.t, '그대로 뽑으면 됨 · '+list.reduce((a,r)=>a+qtyOf(r),0)+'장', list, '없음',
+      g.t==='백지'?'t-blank':'t-book');
   });
-  h+=sec('자체교재', '뽑지 말고 Day만 적어주기', self, '없음');
+  h+=sec('자체교재', '뽑지 말고 Day만 적어주기', self, '없음', 't-self');
   return h;
 }
 
@@ -612,14 +693,14 @@ function viewWeek(){
     h+='<div class="wkday'+(ds===today?' today':'')+'"><h4>'+DAYK[d.getDay()]+'<em>'+(d.getMonth()+1)+'.'+d.getDate()+'</em>'+(sh?'<i>'+sh+'장</i>':'')+'</h4>';
     if(!rows.length)h+='<div class="wkitem f">시험 없음</div>';
     rows.forEach(r=>{
-      const c=r.kind==='vocab'?'v':r.kind==='fixed'?'f':'a';
+      const c=(r.kind==='vocab'?'v':r.kind==='fixed'?'f':'a')+' '+tintOf(r);
       const t=r.kind==='retest'?(roundName(r.it.round)+' '+(r.it.rk?rkLabel(r.it.rk,r.src,r.cls):(r.src||''))):r.kind==='vocab'?((r.src||'단어')+(r.num!=null?' '+r.ul+' '+(r.invalid?'?':r.num):'')):r.kind==='each'?'각자 다름':r.kind==='blank'?'백지':r.kind==='fixed'?'자체교재'
         :r.kind==='set'?r.label:r.kind==='book'?(r.it.noprint?'자체교재':r.book)+' '+(r.ul||'Day')+' '+(r.invalid?'?':r.num)+(r.it.fmt?' '+r.it.fmt:''):r.book;
       h+='<div class="wkitem '+c+'"><b>'+esc(r.cls)+'</b> '+esc(t)+' <span style="color:var(--ink-soft)">'+(r.n||0)+(prints(r)?'장':'명')+'</span></div>';
     });
     h+='</div>';
   }
-  return h+'</div></div><div class="note">노란 줄 = 단어 받아야 하는 것. 파란 글씨 = 자동. 회색 = 자체교재. 오른쪽 장수는 자체교재를 뺀, 뽑아야 하는 숫자예요.</div>';
+  return h+'</div></div><div class="note">왼쪽 색은 그날 시험 화면과 같아요. <span class="sw t-retest"></span>재시험 <span class="sw t-vocab"></span>단어 <span class="sw t-blank"></span>백지 <span class="sw t-book"></span>뜯중·워드마스터 <span class="sw t-each"></span>각자 다름 <span class="sw t-self"></span>자체교재. 오른쪽 장수는 자체교재를 뺀 숫자예요.</div>';
 }
 
 function itemSummary(it){
@@ -733,14 +814,38 @@ function wire(){
   };
   const rtk=document.querySelector('#rtk');
   if(rtk)rtk.onchange=()=>{grab();render()};
+  const rtal=document.querySelector('[data-rtall]');
+  if(rtal)rtal.onclick=()=>{grab();rtAll=!rtAll;render()};
   document.querySelectorAll('[data-rt]').forEach(b=>b.onclick=()=>{
     const src=cfg.items.find(x=>x.id===b.dataset.rt);
-    rtOpen=b.dataset.rt; rtSel={}; rtDate=shift(sel,1); rtWhat=''; rtRound=1;
-    rtKind = src.kind==='blank'?'blank' : src.kind==='vocab'?'vocab'
-      : /뜯중\s*1200/.test(src.book||'')?'t1200' : /뜯중\s*1800/.test(src.book||'')?'t1800'
-      : /워드마스터/.test(src.book||'')?'wm' : /리딩튜터/.test(src.book||'')?'rd'
-      : src.noprint?'self' : 'vocab';
+    rtOpen=b.dataset.rt; rtSel={}; rtDate=shift(sel,1); rtAll=false;
+    if(src.kind==='retest'){                       // 재시험의 다음 차수
+      const ps=(entry(sel,src.id).pass)||{};
+      (src.names||[]).forEach(x=>{ if(!ps[x]) rtSel[x]=true });
+      rtRound=Math.min(3,(src.round||1)+1);
+      rtKind=src.rk||'vocab'; rtWhat=src.src||'';
+    }else{
+      rtRound=1; rtWhat='';
+      rtKind = src.kind==='blank'?'blank' : src.kind==='vocab'?'vocab'
+        : /뜯중\s*1200/.test(src.book||'')?'t1200' : /뜯중\s*1800/.test(src.book||'')?'t1800'
+        : /워드마스터/.test(src.book||'')?'wm' : /리딩튜터/.test(src.book||'')?'rd'
+        : src.noprint?'self' : 'vocab';
+    }
     render();
+  });
+  document.querySelectorAll('[data-img]').forEach(b=>b.onclick=()=>{
+    pendImg=b.dataset.img; $('#imgin').click();
+  });
+  document.querySelectorAll('[data-big]').forEach(im=>im.onclick=()=>{
+    $('#lb').querySelector('img').src=im.dataset.big; $('#lb').classList.add('on');
+  });
+  document.querySelectorAll('[data-delimg]').forEach(b=>b.onclick=async()=>{
+    if(!confirm('이 답지 사진을 지울까요?'))return;
+    const [id,i]=b.dataset.delimg.split('|');
+    const en=entry(sel,id), v=(en.imgs||[])[+i];
+    en.imgs.splice(+i,1);
+    if(WORKER&&v&&v.indexOf('data:')!==0){ try{ await fetch(WORKER+'/img?del=1&id='+encodeURIComponent(v)) }catch(e){} }
+    await saveLog(sel.slice(0,7)); render();
   });
   document.querySelectorAll('[data-pass]').forEach(b=>b.onclick=async()=>{
     const [id,nm]=b.dataset.pass.split('|');
@@ -750,7 +855,8 @@ function wire(){
   document.querySelectorAll('[data-next]').forEach(b=>b.onclick=()=>{
     const it=cfg.items.find(x=>x.id===b.dataset.next), e=entry(sel,it.id);
     rtOpen=it.id; rtSel={}; (it.names||[]).forEach(x=>{ if(!(e.pass||{})[x]) rtSel[x]=true });
-    rtDate=shift(sel,1); rtWhat=it.src||''; rtKind=it.rk||'vocab'; rtRound=Math.min(3,(it.round||1)+1); render();
+    rtDate=shift(sel,1); rtWhat=it.src||''; rtKind=it.rk||'vocab'; rtAll=false;
+    rtRound=Math.min(3,(it.round||1)+1); render();
   });
   document.querySelectorAll('[data-rtn2]').forEach(b=>b.onclick=()=>{
     grab(); const k=b.dataset.rtn2; rtSel[k]=!rtSel[k]; render();
@@ -863,6 +969,21 @@ function wire(){
   const rs=document.querySelector('[data-reset]');
   if(rs)rs.onclick=async()=>{if(!confirm('설정을 처음 상태로 되돌릴까요?'))return;cfg=seed();await saveCfg();render()};
 }
+
+let pendImg=null;
+$('#imgin').onchange=async e=>{
+  const f=e.target.files&&e.target.files[0];
+  e.target.value='';
+  if(!f||!pendImg)return;
+  const id=pendImg; pendImg=null;
+  toast('사진 올리는 중…');
+  try{
+    const v=await upImg(await shrink(f));
+    const en=entry(sel,id); en.imgs=(en.imgs||[]).concat([v]);
+    await saveLog(sel.slice(0,7)); render(); toast('답지 넣었어요');
+  }catch(err){ toast('사진 실패 — '+(err&&err.message?err.message:'')) }
+};
+$('#lb').onclick=()=>$('#lb').classList.remove('on');
 
 let tt;
 function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),1500)}
