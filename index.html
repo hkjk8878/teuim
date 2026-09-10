@@ -61,6 +61,11 @@
   input.val,textarea.memo{width:100%;margin-top:6px;border:1px solid rgba(0,0,0,.18);border-radius:3px;background:rgba(255,255,255,.8);font-family:inherit;font-size:13px;padding:6px 8px}
   textarea.memo{resize:vertical;min-height:36px}
   .acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .rt{margin-top:8px;padding:10px;border:1px solid rgba(0,0,0,.25);border-radius:3px;background:rgba(255,255,255,.75)}
+  .names{display:flex;flex-wrap:wrap;gap:5px}
+  .nm{font-family:inherit;font-size:13px;padding:5px 10px;border:1px solid var(--grid);border-radius:999px;background:#fff;color:var(--ink-soft);cursor:pointer}
+  .nm.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .nm.ok{background:#1F7A3D;color:#fff;border-color:#1F7A3D}
   .notebtn{border:1px solid rgba(0,0,0,.2);background:rgba(255,255,255,.65);border-radius:3px;padding:4px 9px;font-family:inherit;font-size:12px;color:var(--ink-soft);cursor:pointer}
   .notebtn:active{background:rgba(0,0,0,.06)}
   .notebtn.has{color:var(--red);border-color:var(--red)}
@@ -141,12 +146,13 @@
 <script>
 const DAYK=['일','월','화','수','목','금','토'];
 const KIND={
-  vocab:{label:'단어시험(단어 받기)',cls:'need'},
-  each:{label:'각자 다름(애들이 요청)',cls:'need'},
+  retest:{label:'재시험',cls:'need'},
+  vocab:{label:'단어 (애들이 알려줌)',cls:'need'},
+  each:{label:'각자 다름 (애들이 요청)',cls:'need'},
   blank:{label:'백지',cls:'auto'},
-  book:{label:'교재 자동',cls:'auto'},
-  manual:{label:'직접 입력',cls:'auto'},
-  set:{label:'내용 고정',cls:'auto'},
+  book:{label:'교재 (Day 주마다 올라감)',cls:'auto'},
+  manual:{label:'매번 범위 적기',cls:'auto'},
+  set:{label:'내용 직접 적기',cls:'auto'},
   fixed:{label:'자체교재',cls:'fixed'}
 };
 
@@ -156,7 +162,44 @@ const N={TWC:5,TPG:9,TPA:3,THA:6,TPP:10,TPV:7,TPD:7,TPC:10,THI:10,TPN:7,
   TPH:10,TPT:9,TPW:10,TMA:3,TPQ:11,TPX:5,TPO:5,
   TMX:9,TMP:8,TMG:8,TMB:7,TPF:4,TP1:5,TM1:8};
 
-const SEEDV=3;
+const SEEDV=6;
+
+/* 반별 명단 — 시간표에서 읽음. 틀린 이름은 아래 ROSTER에서 고치면 됩니다. */
+const ROSTER={
+ TWC:['이준혁','조하준','최별','최유은','최유하'],
+ TPG:['김루아','김하엘','류수현','박서아','배서연','위민서','조수현','조우진','조재현'],
+ TPA:['문은설','이세은','최아현'],
+ THA:['김시아','김은세','김하윤','백강우','송하린','이서훈'],
+ TPP:['강설아','고은지','김라희','김리아','김사랑','박세빈','이소윤','진은솔','진해솔','한세아'],
+ TPV:['김도현','박지오','배수연','우윤슬','윤서영','이루다','임선우'],
+ TPD:['안새빈','우지원','윤예준','이주원','이지유','장수아','전수아'],
+ TPC:['김민준','김사랑','김태민','박환희','서다은','안예준','오예나','오하은','이도현','이로은','이성우'],
+ THI:['김예서','박서윤','박서은','안예서','이소은','이유나','인율','장가현','정소율','조민서'],
+ TPN:['박서윤','박소이','위은서','이로아','최승희','최예현','홍선우'],
+ TPE:['윤필','임수지','전서온','조수빈'],
+ 'TPE-1':['김예린','김은우','김한결','박다운','박서율','허로이'],
+ TPH:['성민호','안지율','왕지우','이다원','이소윤','장윤서','장하진','전우린','정유준','한주아'],
+ TPT:['곽민준','권다원','김루아','박서현','이기윤','이재준','이재혁','장인경','최서현'],
+ TPW:['김다운','김예은','남제연','류가은','박서은','박채은','안서준','최하늘','한윤설','황다은'],
+ TMA:['강윤식','박한','한재희'],
+ TPQ:['김하은','박세이','배세은','우윤서','이로은','이서진','이은유','이재윤','정기쁨','조은채','최이준'],
+ TPX:['박세아','박소이','오유나','이태린','장주원'],
+ TPO:['김시원','나도윤','노우준','서지온','이재혁'],
+ TMX:['김소예','김소은','김연우','김유진','김하음','박서진','송선우','안성빈','최지안'],
+ TMP:['배서진','양시우','예현준','유아인','이가윤','이아라','정윤','최수아'],
+ TMG:['김아론','박예솔','서준민','이은서','이채은','임현서','정승유','홍서현'],
+ TMB:['김도운','김민지','김예준','김지원','김하준','백재하','이해인'],
+ TPF:['김두현','성민재','장주희','조아영'],
+ TP1:['서지후','양준서','우시훈','이재준','최소윤'],
+ TM1:['김예지','김지우','박윤호','박채은','백서연','이승민','정나은','최은지']
+};
+function roster(cls){
+  if(ROSTER[cls])return ROSTER[cls];
+  let out=[];
+  cls.split('&').map(x=>x.trim()).forEach(p=>{ if(ROSTER[p]) out=out.concat(ROSTER[p]) });
+  return out;
+}
+
 function seed(){
   let k=0;
   const A=o=>Object.assign({id:'s'+(++k),sure:true,off:false,n:N[o.cls]},o);
@@ -206,21 +249,21 @@ function seed(){
   A({cls:'THA',kind:'vocab',wd:2,off:true,sure:false,src:'파닉스'}),
 
   /* ── 자체교재 반: 주에 Day 하나, 앞날=영단어만 쓰기 / 뒷날=뜻만 쓰기. 9/7 주가 Day1 ── */
-  ...selfBook('TMX','뜯중 1800',1,3),
-  ...selfBook('TMP','뜯중 1800',1,3),
-  ...selfBook('TMG','워드마스터 중등 실력',1,3),
-  ...selfBook('TMB','뜯중 1200',1,3),
-  ...selfBook('TPF','워드마스터 수능 2000',2,4),
-  ...selfBook('TM1','뜯중 1800',2,4),
+  ...selfBook('TMX','뜯중 1800',1,3,null,null,true),
+  ...selfBook('TMP','뜯중 1800',1,3,null,null,true),
+  ...selfBook('TMG','워드마스터 중등 실력',1,3,null,null,true),
+  ...selfBook('TMB','뜯중 1200',1,3,null,null,true),
+  ...selfBook('TPF','워드마스터 수능 2000',2,4,null,null,true),
+  ...selfBook('TM1','뜯중 1800',2,4,null,null,true),
   A({cls:'TP1',kind:'book',wd:2,book:'뜯중 1800',base:1,anchor:'2026-09-08',step:1,fmt:'영단어만 쓰기',noprint:true,from:'2026-09-15',sure:false})
   ]};
 
-  function selfBook(cls,book,wdA,wdB,fromA,fromB){
+  function selfBook(cls,book,wdA,wdB,fromA,fromB,ok){
     const anchorA = wdA===1?'2026-09-07':'2026-09-08';
     const anchorB = wdB===3?'2026-09-09':'2026-09-10';
     return [
-      A({cls,kind:'book',wd:wdA,book,base:1,anchor:anchorA,step:1,fmt:'영단어만 쓰기',noprint:true,from:fromA,sure:false}),
-      A({cls,kind:'book',wd:wdB,book,base:1,anchor:anchorB,step:1,fmt:'뜻만 쓰기',noprint:true,from:fromB,sure:false})
+      A({cls,kind:'book',wd:wdA,book,base:1,anchor:anchorA,step:1,fmt:'영단어만 쓰기',noprint:true,from:fromA,sure:!!ok}),
+      A({cls,kind:'book',wd:wdB,book,base:1,anchor:anchorB,step:1,fmt:'뜻만 쓰기',noprint:true,from:fromB,sure:!!ok})
     ];
   }
 }
@@ -228,6 +271,8 @@ function seed(){
 const RULES={};
 
 let cfg=seed(), logs={}, sel=null, tab='day', memory=false, open={}, addOpen=false, editing={};
+let rtOpen=null, rtSel={}, rtDate='', rtWhat='', rtRound=1, rtKind='vocab';
+let afCls='', afNew='', afKind='retest', afDate='', afN='', afWhat='', afNote='', afPrint='', afSel={}, afRound=1, afRKind='vocab';
 
 const pad=n=>String(n).padStart(2,'0');
 const ymd=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
@@ -321,8 +366,44 @@ const CLSORD=['TWC','TPG','TPA','THA',
   'TPP','TPV','TPD','TPC','THI','TPN','TPE','TPE-1','TPE & TPE-1','TPE & TPD',
   'TPH','TPT','TPW','TMA','TPQ','TPX','TPO',
   'TMX','TMP','TMG','TMB','TPF','TP1','TM1'];
+const CHOICES=[
+ {v:'retest',t:'재시험',      kind:'retest'},
+ {v:'vocab', t:'단어',        kind:'vocab'},
+ {v:'blank', t:'백지',        kind:'blank'},
+ {v:'t1200', t:'뜯중 1200',   kind:'set', book:'뜯중 1200'},
+ {v:'t1800', t:'뜯중 1800',   kind:'set', book:'뜯중 1800'},
+ {v:'wm',    t:'워드마스터',   kind:'set', book:'워드마스터'},
+ {v:'rd',    t:'리딩튜터',     kind:'set', book:'리딩튜터'},
+ {v:'self',  t:'자체교재',     kind:'set', book:'자체교재', noprint:true},
+ {v:'each',  t:'각자 다름 (애들이 요청)', kind:'each'},
+ {v:'free',  t:'직접 쓰기',    kind:'set'}
+];
+const choice=v=>CHOICES.find(c=>c.v===v)||CHOICES[0];
+/* 자체교재 반이 쓰는 교재 — 반을 고르면 자동으로 붙습니다 */
+const SELFBOOK={TMX:'뜯중 1800',TMP:'뜯중 1800',TMG:'워드마스터 중등 실력',TMB:'뜯중 1200',
+  TPF:'워드마스터 수능 2000',TP1:'뜯중 1800',TM1:'뜯중 1800',TPX:'뜯중 1800'};
+const bookFor=(v,cls)=>{
+  const c=CHOICES.find(x=>x.v===v);
+  if(!c)return '';
+  if(v==='self')return '자체교재'+(SELFBOOK[cls]?' '+SELFBOOK[cls]:'');
+  return c.book||'';
+};
+const RCH=CHOICES.filter(c=>c.v!=='retest');          // 재시험 안에서 고르는 시험 종류
+function rkLabel(rk,src,cls){
+  const c=CHOICES.find(x=>x.v===rk);
+  const head=bookFor(rk,cls) || (c?c.t:'');
+  return [head,src].filter(Boolean).join(' ');
+}
+const roundName=n=>'재'.repeat(Math.max(1,n||1))+'시험';
 const cidx=c=>{const i=CLSORD.indexOf(c);return i<0?900:i};
+function allClasses(){
+  const set={};
+  CLSORD.forEach(c=>set[c]=1);
+  cfg.items.forEach(i=>set[i.cls]=1);
+  return Object.keys(set).sort((a,b)=>cidx(a)-cidx(b)||a.localeCompare(b));
+}
 function rank(r){
+  if(r.kind==='retest')return -1;
   if(!prints(r))return 90;
   if(r.kind==='vocab'||r.kind==='each')return 0;
   const gi=BOOKG.findIndex(g=>g.f(r));
@@ -336,8 +417,8 @@ function forDate(d){
 const $=s=>document.querySelector(s);
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const qtyOf=(r)=>{const e=entry(sel,r.it.id);return e.qty!=null?e.qty:r.n};
-const prints=(r)=>!(r.it.noprint||r.kind==='fixed');
-const isAsk=(r)=>r.kind==='vocab'||r.kind==='each';
+const prints=(r)=>r.kind==='retest'||!(r.it.noprint||r.kind==='fixed');  // 재시험은 늘 다시 뽑음
+const isAsk=(r)=>r.kind==='vocab'||r.kind==='each'||r.kind==='retest';
 const BOOKG=[
   {t:'백지',       f:r=>r.kind==='blank'},
   {t:'뜯중 1200', f:r=>/뜯중\s*1200/.test(r.book)},
@@ -349,6 +430,11 @@ const bookGroup=r=>(BOOKG.find(g=>g.f(r))||BOOKG[BOOKG.length-1]).t;
 
 function content(r){
   const unit=r.num!=null?' <button class="numbtn" data-fix="'+r.it.id+'">'+r.ul+' '+(r.invalid?'?':r.num)+'</button>':'';
+  if(r.kind==='retest'){
+    const w=r.it.rk?rkLabel(r.it.rk,r.src,r.cls):(r.src||'');
+    return '<span style="color:var(--red);font-weight:700">'+roundName(r.it.round)+'</span>'
+      +(w?' <span>'+esc(w)+'</span>':'');
+  }
   if(r.kind==='vocab')return r.src?esc(r.src)+unit:'단어시험'+unit;
   if(r.kind==='blank'){
     const v=entry(sel,r.it.id).val||r.src;
@@ -401,16 +487,55 @@ function rowHTML(r){
   }
   if(r.kind==='vocab')
     h+='<textarea class="memo" data-memo="'+id+'" placeholder="받은 단어 / 범위">'+esc(e.memo||'')+'</textarea>';
+  if(r.kind==='retest'&&(r.it.names||[]).length){
+    const nm=r.it.names, ps=e.pass||{};
+    h+='<div class="names" style="margin-top:8px">'
+      + nm.map(x=>'<button class="nm'+(ps[x]?' ok':'')+'" data-pass="'+id+'|'+esc(x)+'">'+esc(x)+(ps[x]?' ✓':'')+'</button>').join('')
+      + '</div>';
+    const done=nm.filter(x=>ps[x]).length;
+    h+='<div class="meta">통과 '+done+' / '+nm.length+(done===nm.length?' · 다 끝났어요':'')+'</div>';
+  }
   const acts=[];
+  if(r.kind==='retest'&&(r.it.names||[]).length){
+    const left=(r.it.names).filter(x=>!(e.pass||{})[x]);
+    if(left.length&&left.length<r.it.names.length)
+      acts.push('<button class="notebtn" data-next="'+id+'">남은 '+left.length+'명 '+roundName((r.it.round||1)+1)+' 잡기</button>');
+  }
   if(r.num!=null)acts.push('<button class="notebtn" data-fix="'+id+'">'+r.ul+' 번호 고치기</button>');
   acts.push('<button class="notebtn'+(e.note?' has':'')+'" data-open="'+id+'">'+(e.note?'특이사항 있음':'특이사항 적기')+'</button>');
+  acts.push('<button class="notebtn" data-rt="'+id+'">재시험 잡기</button>');
   acts.push(r.it.once
     ? '<button class="notebtn" data-del="'+id+'">이 시험 지우기</button>'
     : '<button class="notebtn" data-skip="'+id+'">이 날은 건너뛰기</button>');
   h+='<div class="acts">'+acts.join('')+'</div>';
+  if(rtOpen===id)h+=rtPanel(r);
   if(open[id]||e.note)
     h+='<textarea class="memo" data-note="'+id+'" placeholder="결석 / 시험 안 봄 / 재시험 대상 / 지난주 못 본 애">'+esc(e.note||'')+'</textarea>';
   return h+'</div>';
+}
+
+function rtPanel(r){
+  const names=roster(r.cls), n=Object.keys(rtSel).filter(k=>rtSel[k]).length;
+  let h='<div class="rt"><div class="fields" style="margin:0">'
+   +'<div><label>언제 볼까요</label><input type="date" id="rtd" value="'+esc(rtDate)+'"></div>'
+   +'<div><label>몇 장</label><input type="number" id="rtn" value="'+(n||1)+'"></div>'
+   +'<div><label>차수</label><select id="rtr">'
+     +[1,2,3].map(v=>'<option value="'+v+'"'+(rtRound===v?' selected':'')+'>'+roundName(v)+'</option>').join('')
+     +'</select></div>'
+   +'<div><label>무슨 시험</label><select id="rtk">'
+     +RCH.map(c=>'<option value="'+c.v+'"'+(rtKind===c.v?' selected':'')+'>'+c.t+'</option>').join('')
+     +'</select></div></div>';
+  if(names.length){
+    h+='<div style="font-size:11px;color:var(--ink-soft);margin:8px 0 4px">누가 보나요 (여러 명 고를 수 있어요)</div><div class="names">'
+     + names.map(nm=>'<button class="nm'+(rtSel[nm]?' on':'')+'" data-rtn2="'+esc(nm)+'">'+esc(nm)+'</button>').join('')
+     + '</div>';
+  }
+  h+='<input class="val" id="rtx" value="'+esc(rtWhat)+'" placeholder="'
+   +(bookFor(rtKind,r.cls)?bookFor(rtKind,r.cls)+' — 어디까지 (예: Day 5)':'범위 (예: Unit 7)')+'">'
+   +'<div class="toolbar" style="margin:8px 0 0">'
+   +'<button class="btn" data-rtok="'+r.it.id+'">재시험 추가</button>'
+   +'<button class="btn ghost" data-rtno="1">취소</button></div></div>';
+  return h;
 }
 
 function viewDay(){
@@ -418,38 +543,63 @@ function viewDay(){
   const sheets=rows.filter(prints).reduce((s,r)=>s+qtyOf(r),0);
   let h='<div class="total"><b>'+sheets+'</b><span>장 뽑으면 돼요 · 시험 '+rows.length+'개</span></div>';
   if(RULES[wd])h+='<div class="rule">'+RULES[wd]+'</div>';
+  h+= addOpen ? addForm() : '<div class="toolbar" style="margin:10px 0 0"><button class="btn ghost" data-once="1">＋ 시험 / 재시험 추가</button></div>';
   if(!rows.length)return h+'<div class="sec"><div class="empty">이 날은 0교시 시험이 없어요.</div></div>';
 
-  const isNeed=r=>r.kind==='vocab'||r.kind==='each';
+  const isNeed=r=>r.kind==='vocab'||r.kind==='each'||r.kind==='retest';
   const need=rows.filter(isNeed);
   const mine=rows.filter(r=>!isNeed(r)&&prints(r));
-  const self=rows.filter(r=>!prints(r));
+  const self=rows.filter(r=>!isNeed(r)&&!prints(r));
   const sec=(t,sub,list,empty)=>'<div class="sec"><div class="sec-h"><b>'+t+'</b><span>'+sub+'</span></div>'
     +(list.length?list.map(rowHTML).join(''):'<div class="empty">'+empty+'</div>')+'</div>';
-  h+=sec('단어', '애들이 알려줘야 함 · '+need.reduce((a,r)=>a+qtyOf(r),0)+'장', need, '없음');
+  const rt=need.filter(r=>r.kind==='retest'), nd=need.filter(r=>r.kind!=='retest');
+  if(rt.length)h+=sec('재시험', '못 본 애들 · '+rt.reduce((a,r)=>a+qtyOf(r),0)+'장', rt, '없음');
+  h+=sec('단어', '애들이 알려줘야 함 · '+nd.reduce((a,r)=>a+qtyOf(r),0)+'장', nd, '없음');
   BOOKG.forEach(g=>{
     const list=mine.filter(r=>bookGroup(r)===g.t);
     if(list.length)h+=sec(g.t, '그대로 뽑으면 됨 · '+list.reduce((a,r)=>a+qtyOf(r),0)+'장', list, '없음');
   });
   h+=sec('자체교재', '뽑지 말고 Day만 적어주기', self, '없음');
-  h+= addOpen ? addForm() : '<div class="toolbar"><button class="btn ghost" data-once="1">이 날 시험 추가</button></div>';
   return h;
 }
 
 function addForm(){
-  return '<div class="item" style="margin-top:12px">'
-   +'<div class="line1"><b>이 날만 시험 추가</b></div><div class="fields">'
-   +'<div><label>반</label><input id="ac" placeholder="예: TPV"></div>'
-   +'<div><label>인원(장수)</label><input id="an" type="number" placeholder="0"></div>'
+  const cls = afCls==='__new' ? afNew.trim().toUpperCase() : afCls;
+  const names = afKind==='retest' ? roster(cls) : [];
+  const picked = Object.keys(afSel).filter(k=>afSel[k]);
+  const auto = afKind==='retest' ? (picked.length||1) : (N[cls]||0);
+  let h='<div class="item" style="margin-bottom:14px">'
+   +'<div class="line1"><b>시험 추가</b></div><div class="fields">'
+   +'<div><label>날짜</label><input type="date" id="ad" value="'+esc(afDate)+'"></div>'
    +'<div><label>종류</label><select id="ak">'
-     +'<option value="vocab">단어 (애들이 알려줘야 함)</option>'
-     +'<option value="blank">백지</option>'
-     +'<option value="set">내용 직접 쓰기</option>'
-     +'<option value="each">각자 다름</option></select></div>'
-   +'<div><label>비고</label><input id="ao" placeholder="메모"></div>'
-   +'<div style="grid-column:1/-1"><label>교재 / 내용 (예: Bricks reading 30-1 Unit 7)</label><input id="at" placeholder="비워도 돼요"></div>'
-   +'</div><div class="toolbar"><button class="btn" data-addok="1">추가</button>'
+     +CHOICES.map(c=>'<option value="'+c.v+'"'+(afKind===c.v?' selected':'')+'>'+c.t+'</option>').join('')
+     +'</select></div>'
+   +'<div><label>반</label><select id="ac">'
+     +allClasses().map(c=>'<option value="'+esc(c)+'"'+(afCls===c?' selected':'')+'>'+esc(c)+' ('+(N[c]||0)+'명)</option>').join('')
+     +'<option value="__new"'+(afCls==='__new'?' selected':'')+'>직접 입력…</option></select>'
+     +(afCls==='__new'?'<input id="ac2" placeholder="반 이름" value="'+esc(afNew)+'" style="margin-top:4px">':'')
+     +'</div>'
+   +'<div><label>몇 장</label><input type="number" id="an" value="'+esc(afN!==''?afN:auto)+'"></div>'
+   +(afKind==='retest'?'<div><label>차수</label><select id="ar">'
+       +[1,2,3].map(v=>'<option value="'+v+'"'+(afRound===v?' selected':'')+'>'+roundName(v)+'</option>').join('')
+       +'</select></div>'
+       +'<div><label>무슨 시험</label><select id="arw">'
+       +RCH.map(c=>'<option value="'+c.v+'"'+(afRKind===c.v?' selected':'')+'>'+c.t+'</option>').join('')
+       +'</select></div>':'')
+   +'<div><label>비고</label><input id="ao" value="'+esc(afNote)+'" placeholder="메모"></div>'
+   +'<div style="grid-column:1/-1"><label>'+(bookFor(afKind==='retest'?afRKind:afKind, cls)
+       ? bookFor(afKind==='retest'?afRKind:afKind, cls)+' — 어디까지' : '범위 / 내용')+'</label><input id="at" value="'+esc(afWhat)+'" placeholder="'+(bookFor(afKind==='retest'?afRKind:afKind, cls)?'예: Day 5':'예: Unit 7 / Day 15')+'"></div>'
+   +'</div>';
+  if(afKind==='retest'){
+    h+= names.length
+      ? '<div style="font-size:11px;color:var(--ink-soft);margin:8px 0 4px">누가 보나요 (여러 명)</div><div class="names">'
+        + names.map(nm=>'<button class="nm'+(afSel[nm]?' on':'')+'" data-afn="'+esc(nm)+'">'+esc(nm)+'</button>').join('')
+        + '</div>'
+      : '<div style="font-size:11px;color:var(--ink-soft);margin:8px 0 0">이 반은 명단이 없어요. 위 칸에 이름을 적어주세요.</div>';
+  }
+  h+='<div class="toolbar"><button class="btn" data-addok="1">추가</button>'
    +'<button class="btn ghost" data-addcancel="1">취소</button></div></div>';
+  return h;
 }
 
 function viewWeek(){
@@ -463,7 +613,7 @@ function viewWeek(){
     if(!rows.length)h+='<div class="wkitem f">시험 없음</div>';
     rows.forEach(r=>{
       const c=r.kind==='vocab'?'v':r.kind==='fixed'?'f':'a';
-      const t=r.kind==='vocab'?((r.src||'단어')+(r.num!=null?' '+r.ul+' '+(r.invalid?'?':r.num):'')):r.kind==='each'?'각자 다름':r.kind==='blank'?'백지':r.kind==='fixed'?'자체교재'
+      const t=r.kind==='retest'?(roundName(r.it.round)+' '+(r.it.rk?rkLabel(r.it.rk,r.src,r.cls):(r.src||''))):r.kind==='vocab'?((r.src||'단어')+(r.num!=null?' '+r.ul+' '+(r.invalid?'?':r.num):'')):r.kind==='each'?'각자 다름':r.kind==='blank'?'백지':r.kind==='fixed'?'자체교재'
         :r.kind==='set'?r.label:r.kind==='book'?(r.it.noprint?'자체교재':r.book)+' '+(r.ul||'Day')+' '+(r.invalid?'?':r.num)+(r.it.fmt?' '+r.it.fmt:''):r.book;
       h+='<div class="wkitem '+c+'"><b>'+esc(r.cls)+'</b> '+esc(t)+' <span style="color:var(--ink-soft)">'+(r.n||0)+(prints(r)?'장':'명')+'</span></div>';
     });
@@ -575,27 +725,100 @@ function wire(){
     const it=cfg.items.find(x=>x.id===b.dataset.skip);
     it.skip=(it.skip||[]).concat([sel]); await saveCfg(); render(); toast('건너뛰었어요');
   });
-  const once=document.querySelector('[data-once]');
-  if(once)once.onclick=()=>{addOpen=true;render()};
-  const ac=document.querySelector('#ac');
-  if(ac)ac.oninput=()=>{
-    const n=N[ac.value.trim().toUpperCase()];
-    if(n!=null)document.querySelector('#an').value=n;
+  const grab=()=>{
+    const d=document.querySelector('#rtd'), x=document.querySelector('#rtx'),
+          k=document.querySelector('#rtk'), rr=document.querySelector('#rtr');
+    if(d)rtDate=d.value; if(x)rtWhat=x.value;
+    if(k)rtKind=k.value; if(rr)rtRound=parseInt(rr.value,10)||rtRound;
   };
+  const rtk=document.querySelector('#rtk');
+  if(rtk)rtk.onchange=()=>{grab();render()};
+  document.querySelectorAll('[data-rt]').forEach(b=>b.onclick=()=>{
+    const src=cfg.items.find(x=>x.id===b.dataset.rt);
+    rtOpen=b.dataset.rt; rtSel={}; rtDate=shift(sel,1); rtWhat=''; rtRound=1;
+    rtKind = src.kind==='blank'?'blank' : src.kind==='vocab'?'vocab'
+      : /뜯중\s*1200/.test(src.book||'')?'t1200' : /뜯중\s*1800/.test(src.book||'')?'t1800'
+      : /워드마스터/.test(src.book||'')?'wm' : /리딩튜터/.test(src.book||'')?'rd'
+      : src.noprint?'self' : 'vocab';
+    render();
+  });
+  document.querySelectorAll('[data-pass]').forEach(b=>b.onclick=async()=>{
+    const [id,nm]=b.dataset.pass.split('|');
+    const e=entry(sel,id); e.pass=e.pass||{}; e.pass[nm]=!e.pass[nm];
+    await saveLog(sel.slice(0,7)); render();
+  });
+  document.querySelectorAll('[data-next]').forEach(b=>b.onclick=()=>{
+    const it=cfg.items.find(x=>x.id===b.dataset.next), e=entry(sel,it.id);
+    rtOpen=it.id; rtSel={}; (it.names||[]).forEach(x=>{ if(!(e.pass||{})[x]) rtSel[x]=true });
+    rtDate=shift(sel,1); rtWhat=it.src||''; rtKind=it.rk||'vocab'; rtRound=Math.min(3,(it.round||1)+1); render();
+  });
+  document.querySelectorAll('[data-rtn2]').forEach(b=>b.onclick=()=>{
+    grab(); const k=b.dataset.rtn2; rtSel[k]=!rtSel[k]; render();
+  });
+  const rtno=document.querySelector('[data-rtno]');
+  if(rtno)rtno.onclick=()=>{rtOpen=null;render()};
+  const rtok=document.querySelector('[data-rtok]');
+  if(rtok)rtok.onclick=async()=>{
+    grab();
+    const it=cfg.items.find(x=>x.id===rtok.dataset.rtok);
+    if(!rtDate){toast('날짜를 골라주세요');return}
+    const who=Object.keys(rtSel).filter(k=>rtSel[k]);
+    const cnt=parseInt(document.querySelector('#rtn').value,10);
+    const n=isNaN(cnt)?(who.length||1):cnt;
+    const rr=parseInt((document.querySelector('#rtr')||{}).value,10)||rtRound;
+    const rk=(document.querySelector('#rtk')||{}).value||rtKind;
+    cfg.items.push({id:'r'+Date.now(),cls:it.cls,kind:'retest',once:rtDate,n,
+      names:who, round:rr, rk, src:rtWhat||'', sure:true, off:false});
+    const d=rtDate; rtOpen=null; await saveCfg(); render();
+    toast(d.slice(5)+'에 '+it.cls+' '+roundName(rr)+' '+n+'장');
+  };
+  const grabAF=()=>{
+    const g=id=>{const e=document.querySelector(id);return e?e.value:null};
+    const v=g('#ad'); if(v!==null)afDate=v;
+    const k=g('#ak'); if(k!==null)afKind=k;
+    const c=g('#ac'); if(c!==null)afCls=c;
+    const c2=g('#ac2'); if(c2!==null)afNew=c2;
+    const n=g('#an'); if(n!==null)afN=n;
+    const w=g('#at'); if(w!==null)afWhat=w;
+    const o=g('#ao'); if(o!==null)afNote=o;
+    const pp=g('#ap'); if(pp!==null)afPrint=pp;
+    const rr=g('#ar'); if(rr!==null)afRound=parseInt(rr,10)||1;
+    const rw=g('#arw'); if(rw!==null)afRKind=rw;
+  };
+  const once=document.querySelector('[data-once]');
+  if(once)once.onclick=()=>{
+    addOpen=true; afDate=sel; afKind='retest'; afCls=afCls||allClasses()[0];
+    afNew=''; afN=''; afWhat=''; afNote=''; afPrint=''; afSel={}; afRound=1; afRKind='vocab'; render();
+  };
+  ['#ac','#ak','#ar','#arw'].forEach(id=>{
+    const el=document.querySelector(id);
+    if(el)el.onchange=()=>{grabAF(); if(id==='#ac')afSel={}; afN=''; render()};
+  });
+  document.querySelectorAll('[data-afn]').forEach(b=>b.onclick=()=>{
+    grabAF(); const k=b.dataset.afn; afSel[k]=!afSel[k]; afN=''; render();
+  });
   const cancel=document.querySelector('[data-addcancel]');
   if(cancel)cancel.onclick=()=>{addOpen=false;render()};
   const ok=document.querySelector('[data-addok]');
   if(ok)ok.onclick=async()=>{
-    const c=(document.querySelector('#ac').value||'').trim().toUpperCase();
-    if(!c){toast('반 이름을 넣어주세요');return}
-    const kind=document.querySelector('#ak').value;
-    const txt=(document.querySelector('#at').value||'').trim();
-    const memo=(document.querySelector('#ao').value||'').trim();
-    const nv=parseInt(document.querySelector('#an').value,10);
-    const it={id:'u'+Date.now(),cls:c,kind,once:sel,n:isNaN(nv)?(N[c]||0):nv,sure:true,off:false};
-    if(memo)it.note=memo;
-    if(txt){ if(kind==='set')it.label=txt; else it.src=txt; }
-    cfg.items.push(it); addOpen=false; await saveCfg(); render(); toast(c+' 추가했어요');
+    grabAF();
+    const c = afCls==='__new' ? afNew.trim().toUpperCase() : afCls;
+    if(!c){toast('반을 골라주세요');return}
+    if(!afDate){toast('날짜를 골라주세요');return}
+    const picked=Object.keys(afSel).filter(k=>afSel[k]);
+    const nv=parseInt(afN,10);
+    const n=isNaN(nv)?(afKind==='retest'?(picked.length||1):(N[c]||0)):nv;
+    const ch=choice(afKind);
+    const it={id:'u'+Date.now(),cls:c,kind:ch.kind,once:afDate,n,sure:true,off:false};
+    if(ch.kind==='retest'){ it.names=picked; it.round=afRound; it.rk=afRKind; it.src=afWhat||''; }
+    else if(ch.kind==='set'){ it.label=[bookFor(afKind,c),afWhat].filter(Boolean).join(' ')||'시험'; }
+    else if(afWhat){ it.src=afWhat; }
+    if(afNote)it.note=afNote;
+    if(ch.noprint)it.noprint=true;
+    cfg.items.push(it);
+    const d=afDate; addOpen=false; await saveCfg();
+    if(d!==sel){ await go(d) } else { render() }
+    toast(d.slice(5)+' '+c+' 추가했어요');
   };
   document.querySelectorAll('[data-k]').forEach(el=>el.onchange=async()=>{
     const it=cfg.items.find(x=>x.id===el.dataset.id), k=el.dataset.k;
@@ -645,7 +868,7 @@ let tt;
 function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),1500)}
 
 async function go(d){
-  sel=d; open={}; addOpen=false;
+  sel=d; open={}; addOpen=false; rtOpen=null;
   const mo=sel.slice(0,7);
   await loadLog(mo); await loadLog(prevMonth(mo));
   render();
