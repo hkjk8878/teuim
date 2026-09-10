@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>0교시 시험 트래커</title>
+<meta name="robots" content="noindex">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="0교시">
+<meta name="theme-color" content="#FBFBF8">
+<style>
+  :root{
+    --paper:#FBFBF8; --grid:#E2E1D6; --ink:#1B1B18; --ink-soft:#6E6D62;
+    --pen:#27418F; --red:#B8332A; --hl:#FFF176; --hl-edge:#E8CE3A;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--paper);color:var(--ink);
+    font-family:"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",system-ui,sans-serif;
+    font-size:15px;line-height:1.5;padding-bottom:60px;font-variant-numeric:tabular-nums;
+  }
+  .wrap{max-width:580px;margin:0 auto;padding:0 14px}
+  header{background:var(--paper);border-bottom:1px solid var(--grid);position:sticky;top:0;z-index:20}
+  .datebar{display:flex;align-items:center;gap:8px;padding:10px 0}
+  .datebar h1{margin:0;font-size:25px;font-weight:700;letter-spacing:-.02em;flex:1}
+  .datebar h1 small{font-size:14px;font-weight:500;color:var(--ink-soft);margin-left:6px}
+  .nav{width:34px;height:34px;border:1px solid var(--grid);background:#fff;border-radius:50%;font-size:16px;color:var(--ink);cursor:pointer;line-height:1}
+  .nav:active{background:var(--grid)}
+  .quick{display:flex;gap:6px;padding-bottom:10px;flex-wrap:wrap;align-items:center}
+  .chip{border:1px solid var(--grid);background:#fff;border-radius:999px;padding:5px 12px;font-size:13px;cursor:pointer;color:var(--ink-soft);font-family:inherit}
+  .chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .tabs{display:flex;border-top:1px solid var(--grid)}
+  .tab{flex:1;padding:11px 0;text-align:center;font-size:14px;font-weight:600;color:var(--ink-soft);cursor:pointer;background:none;border:none;border-bottom:2px solid transparent;font-family:inherit}
+  .tab.on{color:var(--ink);border-bottom-color:var(--ink)}
+
+  .total{display:flex;align-items:baseline;gap:10px;margin:16px 0 4px}
+  .total b{font-size:32px;font-weight:700;letter-spacing:-.03em;line-height:1}
+  .total span{font-size:13px;color:var(--ink-soft)}
+  .rule{border-left:3px solid var(--hl-edge);background:#FEFBE3;padding:7px 10px;font-size:13px;margin:8px 0;border-radius:0 3px 3px 0}
+
+  .sec{margin:18px 0 8px}
+  .sec-h{display:flex;align-items:baseline;gap:8px;margin-bottom:8px}
+  .sec-h b{font-size:15px}
+  .sec-h span{font-size:13px;color:var(--ink-soft)}
+
+  .row{border:1px solid var(--grid);border-radius:3px;background:#fff;margin-bottom:6px;padding:10px 12px}
+  .row.need{background:linear-gradient(#FFF7B8,#FFF176);border-color:var(--hl-edge)}
+  .row.done{background:#F4F4EF;border-color:var(--grid);opacity:.6}
+  .top{display:flex;gap:9px;align-items:center}
+  .check{width:23px;height:23px;flex:0 0 23px;border:1.5px solid var(--ink);border-radius:3px;background:#fff;cursor:pointer;font-size:14px;line-height:21px;text-align:center;padding:0;font-family:inherit;color:var(--ink)}
+  .code{font-weight:700;font-size:15px}
+  .qty{margin-left:auto;flex:0 0 auto;border:1px solid rgba(0,0,0,.2);background:rgba(255,255,255,.7);border-radius:3px;font-size:13px;font-weight:700;padding:2px 8px;cursor:pointer;font-family:inherit;color:var(--ink)}
+  .qty.edited{border-color:var(--red);color:var(--red)}
+  .what{font-size:14px;margin-top:3px}
+  .what .num{font-size:19px;font-weight:700}
+  .auto .what{color:var(--pen)}
+  .fixed .what{color:var(--ink-soft)}
+  .meta{font-size:12px;color:var(--ink-soft);margin-top:2px}
+  .warn{color:var(--red)}
+  input.val,textarea.memo{width:100%;margin-top:6px;border:1px solid rgba(0,0,0,.18);border-radius:3px;background:rgba(255,255,255,.8);font-family:inherit;font-size:13px;padding:6px 8px}
+  textarea.memo{resize:vertical;min-height:36px}
+  .acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .notebtn{border:1px solid rgba(0,0,0,.2);background:rgba(255,255,255,.65);border-radius:3px;padding:4px 9px;font-family:inherit;font-size:12px;color:var(--ink-soft);cursor:pointer}
+  .notebtn:active{background:rgba(0,0,0,.06)}
+  .notebtn.has{color:var(--red);border-color:var(--red)}
+  .numbtn{font-family:inherit;font-size:19px;font-weight:700;border:none;background:none;padding:0 1px;color:inherit;cursor:pointer;border-bottom:2px dotted currentColor}
+  .empty{border:1px dashed var(--grid);border-radius:3px;padding:16px 14px;text-align:center;color:var(--ink-soft);font-size:14px}
+
+  .wk{border:1px solid var(--grid);border-radius:3px;overflow:hidden;background:#fff}
+  .wkday{border-bottom:1px solid var(--grid);padding:9px 12px}
+  .wkday:last-child{border-bottom:none}
+  .wkday.today{background:#FDFBE7}
+  .wkday h4{margin:0 0 5px;font-size:13px;font-weight:700}
+  .wkday h4 em{font-style:normal;color:var(--ink-soft);font-weight:500;margin-left:4px}
+  .wkday h4 i{font-style:normal;float:right;color:var(--ink-soft);font-weight:500}
+  .wkitem{font-size:13px;padding:1px 0}
+  .wkitem.v{background:linear-gradient(transparent 55%,var(--hl) 55%);display:inline-block}
+  .wkitem.a{color:var(--pen)}
+  .wkitem.f{color:var(--ink-soft)}
+
+  .grp{margin-bottom:14px}
+  .grp>h3{margin:0 0 6px;font-size:14px;font-weight:700;border-bottom:1px solid var(--grid);padding-bottom:4px;overflow:hidden}
+  .item{border:1px solid var(--grid);border-radius:3px;background:#fff;padding:9px 10px;margin-bottom:6px}
+  .srow{border:1px solid var(--grid);border-radius:3px;background:#fff;margin-bottom:5px;overflow:hidden}
+  .srow.open{border-color:var(--ink)}
+  .srow.isoff{opacity:.55}
+  .sline{display:flex;align-items:center;gap:8px;padding:9px 10px;cursor:pointer}
+  .sline:active{background:#F6F6F1}
+  .sline b{font-size:14px;min-width:46px}
+  .sline span{flex:1;font-size:13px;color:var(--ink-soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .sline em{font-style:normal;font-size:12px;color:var(--ink-soft)}
+  .sline u{font-style:normal;text-decoration:none;font-size:11px;border:1px solid var(--red);border-radius:2px;padding:1px 4px}
+  .sline i{font-style:normal;font-size:12px;color:var(--ink-soft);border:1px solid var(--grid);border-radius:3px;padding:2px 7px}
+  .srow .fields,.srow .toolbar{margin:0 10px 10px}
+  .daytag{font-size:12px;color:var(--ink-soft);margin:8px 0 2px}
+  .item.isoff{opacity:.5}
+  .line1{display:flex;gap:8px;align-items:center}
+  .line1 b{flex:1;font-size:14px}
+  .fields{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-top:8px}
+  .fields label{font-size:11px;color:var(--ink-soft);display:block}
+  .fields input,.fields select{width:100%;font-family:inherit;font-size:13px;padding:5px 6px;border:1px solid var(--grid);border-radius:3px;background:var(--paper);color:var(--ink)}
+  .btn{font-family:inherit;font-size:13px;padding:7px 12px;border-radius:3px;border:1px solid var(--ink);background:var(--ink);color:#fff;cursor:pointer}
+  .btn.ghost{background:#fff;color:var(--ink)}
+  .btn.danger{background:#fff;color:var(--red);border-color:var(--red)}
+  .mini{border:1px solid var(--grid);background:#fff;border-radius:3px;font-size:12px;padding:3px 8px;cursor:pointer;font-family:inherit;color:var(--ink-soft);white-space:nowrap}
+  .mini:active{background:var(--grid)}
+  .toolbar{display:flex;gap:6px;flex-wrap:wrap;margin:14px 0}
+  .note{font-size:12px;color:var(--ink-soft);margin:6px 0 14px;line-height:1.65}
+  .toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--ink);color:#fff;font-size:13px;padding:8px 16px;border-radius:999px;z-index:50;opacity:0;transition:opacity .18s;pointer-events:none}
+  .toast.show{opacity:1}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="datebar">
+      <button class="nav" id="prev" aria-label="이전 날">‹</button>
+      <h1 id="dtitle">—</h1>
+      <button class="nav" id="next" aria-label="다음 날">›</button>
+    </div>
+    <div class="quick">
+      <button class="chip" id="btoday">오늘</button>
+      <button class="chip" id="btmr">내일</button>
+      <input type="date" id="dpick" class="chip" style="padding:4px 10px">
+      <button class="chip" id="bsync">새로고침</button>
+    </div>
+    <div class="tabs">
+      <button class="tab on" data-t="day">그날 시험</button>
+      <button class="tab" data-t="week">이번 주</button>
+      <button class="tab" data-t="set">반 설정</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap" id="main"></main>
+<div class="toast" id="toast"></div>
+
+<script>
+const DAYK=['일','월','화','수','목','금','토'];
+const KIND={
+  vocab:{label:'단어시험(단어 받기)',cls:'need'},
+  each:{label:'각자 다름(애들이 요청)',cls:'need'},
+  blank:{label:'백지',cls:'auto'},
+  book:{label:'교재 자동',cls:'auto'},
+  manual:{label:'직접 입력',cls:'auto'},
+  set:{label:'내용 고정',cls:'auto'},
+  fixed:{label:'자체교재',cls:'fixed'}
+};
+
+/* 반별 인원 — 시간표 맨 아래 합계에서 읽음 */
+const N={TWC:5,TPG:9,TPA:3,THA:6,TPP:10,TPV:7,TPD:7,TPC:10,THI:10,TPN:7,
+  TPE:4,'TPE-1':6,'TPE & TPD':11,'TPE & TPE-1':10,
+  TPH:10,TPT:9,TPW:10,TMA:3,TPQ:11,TPX:5,TPO:5,
+  TMX:9,TMP:8,TMG:8,TMB:7,TPF:4,TP1:5,TM1:8};
+
+const SEEDV=3;
+function seed(){
+  let k=0;
+  const A=o=>Object.assign({id:'s'+(++k),sure:true,off:false,n:N[o.cls]},o);
+  return {v:SEEDV, items:[
+
+  /* ── 매주 월요일 ── */
+  A({cls:'TPV',kind:'vocab',wd:1}),
+  A({cls:'TPD',kind:'vocab',wd:1}),
+  A({cls:'TPH',kind:'book',wd:1,book:'뜯중 1200',base:15,anchor:'2026-09-07',step:1,fmt:'뜻·영단어 섞어서'}),
+  A({cls:'TPT',kind:'book',wd:1,book:'뜯중 1200',base:29,anchor:'2026-09-07',step:1,fmt:'뜻·영단어 섞어서'}),
+  A({cls:'TMA',kind:'each',wd:1,src:'워드마스터 수능 2000 (뜻쓰기만)',note:'애들마다 Day가 달라서 직접 물어봐야 함'}),
+
+  /* ── 매주 화요일 ── */
+  A({cls:'TPE & TPE-1',kind:'blank',wd:2,note:'화·목엔 TPE-1과 같이'}),
+  A({cls:'TPX',kind:'book',wd:2,book:'뜯중 1800',base:1,anchor:'2026-09-08',step:1,fmt:'뜻·영단어 섞어서'}),
+  A({cls:'TPO',kind:'book',wd:2,book:'워드마스터 중등 베이직',base:1,anchor:'2026-09-08',step:1,fmt:'뜻·영단어 섞어서'}),
+  A({cls:'TPN',kind:'book',wd:2,book:'뜯중 1800',base:14,anchor:'2026-09-08',step:1,fmt:'뜻·영단어 섞어서'}),
+  A({cls:'TPQ',kind:'book',wd:2,book:'새 교재 (추후 기입)',base:1,anchor:'2026-09-15',step:1,from:'2026-09-15',fmt:'뜻·영단어 섞어서',sure:false}),
+  A({cls:'THI',kind:'vocab',wd:2,from:'2026-09-15',src:'Bricks reading 30-1',ul:'Unit',base:7,anchor:'2026-09-15',step:1}),
+
+  /* ── 매주 수요일 ── */
+  A({cls:'TPD',kind:'blank',wd:3}),
+  A({cls:'TPP',kind:'blank',wd:3}),
+  A({cls:'TPG',kind:'vocab',wd:3}),
+  A({cls:'TWC',kind:'vocab',wd:3}),
+  A({cls:'TPC',kind:'vocab',wd:3}),
+
+  /* ── 매주 목요일 ── */
+  A({cls:'TP1',kind:'blank',wd:4,from:'2026-09-10'}),
+  A({cls:'TPN',kind:'manual',wd:4,from:'2026-09-10',book:'리딩튜터1',note:'9/10 = 3-2'}),
+  A({cls:'THI',kind:'blank',wd:4,from:'2026-09-10',sure:false}),
+
+  /* ── 매주 금요일 ── */
+  A({cls:'TPH',kind:'blank',wd:5}),
+  A({cls:'TPN',kind:'blank',wd:5,from:'2026-09-11'}),
+  A({cls:'TPV',kind:'blank',wd:5,from:'2026-09-11'}),
+  A({cls:'TPW',kind:'blank',wd:5,from:'2026-09-11'}),
+  A({cls:'TPO',kind:'vocab',wd:5,from:'2026-09-11'}),
+  A({cls:'TPX',kind:'blank',wd:5,from:'2026-09-04'}),
+  A({cls:'TPQ',kind:'blank',wd:5,from:'2026-09-04'}),
+  A({cls:'TPG',kind:'vocab',wd:5,sure:false}),
+  A({cls:'TPE & TPD',kind:'vocab',wd:5,note:'금요일은 TPD와 같이'}),
+
+  /* ── 일정 아직 안 정한 반 (설정에서 켜면 됨) ── */
+  A({cls:'TPA',kind:'vocab',wd:1,off:true,sure:false}),
+  A({cls:'파닉스 개강반',kind:'vocab',wd:2,off:true,sure:false,src:'파닉스',n:0}),
+  A({cls:'THA',kind:'vocab',wd:2,off:true,sure:false,src:'파닉스'}),
+
+  /* ── 자체교재 반: 주에 Day 하나, 앞날=영단어만 쓰기 / 뒷날=뜻만 쓰기. 9/7 주가 Day1 ── */
+  ...selfBook('TMX','뜯중 1800',1,3),
+  ...selfBook('TMP','뜯중 1800',1,3),
+  ...selfBook('TMG','워드마스터 중등 실력',1,3),
+  ...selfBook('TMB','뜯중 1200',1,3),
+  ...selfBook('TPF','워드마스터 수능 2000',2,4),
+  ...selfBook('TM1','뜯중 1800',2,4),
+  A({cls:'TP1',kind:'book',wd:2,book:'뜯중 1800',base:1,anchor:'2026-09-08',step:1,fmt:'영단어만 쓰기',noprint:true,from:'2026-09-15',sure:false})
+  ]};
+
+  function selfBook(cls,book,wdA,wdB,fromA,fromB){
+    const anchorA = wdA===1?'2026-09-07':'2026-09-08';
+    const anchorB = wdB===3?'2026-09-09':'2026-09-10';
+    return [
+      A({cls,kind:'book',wd:wdA,book,base:1,anchor:anchorA,step:1,fmt:'영단어만 쓰기',noprint:true,from:fromA,sure:false}),
+      A({cls,kind:'book',wd:wdB,book,base:1,anchor:anchorB,step:1,fmt:'뜻만 쓰기',noprint:true,from:fromB,sure:false})
+    ];
+  }
+}
+
+const RULES={};
+
+let cfg=seed(), logs={}, sel=null, tab='day', memory=false, open={}, addOpen=false, editing={};
+
+const pad=n=>String(n).padStart(2,'0');
+const ymd=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const parse=s=>{const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d)};
+const shift=(s,n)=>{const d=parse(s);d.setDate(d.getDate()+n);return ymd(d)};
+function monday(s){const d=parse(s),w=d.getDay();d.setDate(d.getDate()-((w+6)%7));return d}
+const weeksBetween=(a,b)=>Math.round((monday(b)-monday(a))/604800000);
+const prevMonth=mo=>{let[y,m]=mo.split('-').map(Number);m--;if(m<1){m=12;y--}return y+'-'+pad(m)};
+
+/* ─────────────────────────────────────────────
+   동기화 설정 — WORKER 주소만 채우면 다 같이 쓰는 모드가 됩니다.
+   비워두면 각자 자기 브라우저에만 저장됩니다.
+   ───────────────────────────────────────────── */
+const WORKER = '';                 // 예: 'https://exam.내계정.workers.dev'
+const ROOM   = 'exam-tracker';     // 방 이름. 나눠 쓰려면 이것만 다르게
+let rev = 0;
+
+async function pullAll(){
+  if(!WORKER){ try{ return JSON.parse(localStorage.getItem('tracker')||'{}') }catch(e){ return {} } }
+  const r = await fetch(WORKER+'/load?room='+encodeURIComponent(ROOM));
+  if(!r.ok) throw new Error('load');
+  const j = await r.json();
+  rev = j.rev || 0;
+  return j.data || {};
+}
+async function pushAll(){
+  const data = {cfg, logs};
+  if(!WORKER){ localStorage.setItem('tracker', JSON.stringify(data)); return }
+  rev++;
+  const r = await fetch(WORKER+'/sync', {method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({room:ROOM, rev, data})});
+  if(!r.ok) throw new Error('sync');
+  const j = await r.json();
+  if(j && j.ok===false && j.data){       // 다른 분이 먼저 저장함 → 그쪽을 따름
+    rev = j.rev; cfg = j.data.cfg || cfg; logs = j.data.logs || logs;
+    toast('다른 분이 먼저 고쳐서 그걸 불러왔어요'); render();
+  }else if(j && j.rev){ rev = j.rev }
+}
+
+async function load(){
+  try{
+    const st = await pullAll();
+    if(st.logs) logs = st.logs;
+    if(st.cfg && st.cfg.v===SEEDV) cfg = st.cfg;
+    else { cfg = seed(); await pushAll(); }   // 시간표가 새로 정리되면 갈아끼움
+  }catch(e){
+    memory = true;
+    toast('저장소에 연결 못 했어요 — 이 화면에서만 유지됩니다');
+  }
+}
+async function saveCfg(){ if(memory)return; try{ await pushAll() }catch(e){ memory=true; toast('저장 실패') } }
+async function loadLog(mo){ if(!logs[mo]) logs[mo]={} }
+async function saveLog(){ if(memory)return; try{ await pushAll() }catch(e){ memory=true; toast('저장 실패') } }
+function entry(date,id){
+  const mo=date.slice(0,7);
+  const m=logs[mo]||(logs[mo]={});
+  const d=m[date]||(m[date]={});
+  return d[id]||(d[id]={});
+}
+function lastVal(id,before){
+  let best=null;
+  Object.keys(logs).forEach(mo=>{
+    Object.keys(logs[mo]).forEach(dt=>{
+      if(dt>=before)return;
+      const e=logs[mo][dt][id];
+      if(e&&e.val&&(!best||dt>best.dt))best={dt,val:e.val};
+    });
+  });
+  return best;
+}
+
+function resolve(it,date){
+  if(it.off)return null;
+  if(it.once){ if(it.once!==date)return null; }
+  else{
+    if(parse(date).getDay()!==it.wd)return null;
+    if(it.from&&date<it.from)return null;
+    if(it.skip&&it.skip.indexOf(date)>=0)return null;
+  }
+  const o={it,kind:it.kind,cls:it.cls,n:it.n||0,sure:it.sure!==false,note:it.note||'',label:it.label||'',book:it.book||'',src:it.src||''};
+  if(it.base!=null&&it.anchor){
+    const skipped=(it.skip||[]).filter(x=>x>it.anchor&&x<date).length;
+    o.num=it.base+it.step*(weeksBetween(it.anchor,date)-skipped);
+    o.ul=it.ul||(it.kind==='book'?'Day':'Unit');
+    o.invalid=o.num<1;
+  }
+  return o;
+}
+const CLSORD=['TWC','TPG','TPA','THA',
+  'TPP','TPV','TPD','TPC','THI','TPN','TPE','TPE-1','TPE & TPE-1','TPE & TPD',
+  'TPH','TPT','TPW','TMA','TPQ','TPX','TPO',
+  'TMX','TMP','TMG','TMB','TPF','TP1','TM1'];
+const cidx=c=>{const i=CLSORD.indexOf(c);return i<0?900:i};
+function rank(r){
+  if(!prints(r))return 90;
+  if(r.kind==='vocab'||r.kind==='each')return 0;
+  const gi=BOOKG.findIndex(g=>g.f(r));
+  return 10+(gi<0?BOOKG.length:gi);
+}
+function forDate(d){
+  return cfg.items.map(i=>resolve(i,d)).filter(Boolean)
+    .sort((a,b)=>rank(a)-rank(b)||cidx(a.cls)-cidx(b.cls)||a.cls.localeCompare(b.cls));
+}
+
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const qtyOf=(r)=>{const e=entry(sel,r.it.id);return e.qty!=null?e.qty:r.n};
+const prints=(r)=>!(r.it.noprint||r.kind==='fixed');
+const isAsk=(r)=>r.kind==='vocab'||r.kind==='each';
+const BOOKG=[
+  {t:'백지',       f:r=>r.kind==='blank'},
+  {t:'뜯중 1200', f:r=>/뜯중\s*1200/.test(r.book)},
+  {t:'뜯중 1800', f:r=>/뜯중\s*1800/.test(r.book)},
+  {t:'워드마스터', f:r=>/워드마스터/.test(r.book)},
+  {t:'따로',      f:()=>true}
+];
+const bookGroup=r=>(BOOKG.find(g=>g.f(r))||BOOKG[BOOKG.length-1]).t;
+
+function content(r){
+  const unit=r.num!=null?' <button class="numbtn" data-fix="'+r.it.id+'">'+r.ul+' '+(r.invalid?'?':r.num)+'</button>':'';
+  if(r.kind==='vocab')return r.src?esc(r.src)+unit:'단어시험'+unit;
+  if(r.kind==='blank'){
+    const v=entry(sel,r.it.id).val||r.src;
+    return '백지'+(v?' <span style="color:var(--ink-soft)">· '+esc(v)+'</span>':'');
+  }
+  if(r.kind==='fixed')return '자체교재'+(r.note?' · '+esc(r.note):'');
+  if(r.kind==='set')return esc(r.label);
+  if(r.kind==='each')return (r.src?esc(r.src):'각자 다름')
+    +' <span style="color:var(--ink-soft)">· 매번 바뀜, 아래에 직접 쓰기</span>';
+  if(r.kind==='book'){
+    const head=r.it.noprint?'자체교재':esc(r.book);
+    const tail=r.it.noprint&&r.book?' <span style="color:var(--ink-soft)">('+esc(r.book)+')</span>':'';
+    return head+unit+(r.it.fmt?' <span style="color:var(--ink)">· '+esc(r.it.fmt)+'</span>':'')+tail;
+  }
+  return esc(r.book||'직접 입력');
+}
+
+function render(){
+  const d=parse(sel), today=ymd(new Date());
+  $('#dtitle').innerHTML=(d.getMonth()+1)+'월 '+d.getDate()+'일<small>'+DAYK[d.getDay()]+'요일</small>';
+  $('#dpick').value=sel;
+  $('#btoday').classList.toggle('on',sel===today);
+  $('#btmr').classList.toggle('on',sel===shift(today,1));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.t===tab));
+  $('#main').innerHTML= tab==='day'?viewDay():tab==='week'?viewWeek():viewSet();
+  wire();
+}
+
+function rowHTML(r){
+  const e=entry(sel,r.it.id), id=r.it.id, k=KIND[r.kind].cls;
+  const q=qtyOf(r), edited=e.qty!=null&&e.qty!==r.n;
+  let h='<div class="row '+k+(r.kind==='vocab'&&e.got?' done':'')+'"><div class="top">';
+  if(r.kind==='vocab')h+='<button class="check" data-got="'+id+'">'+(e.got?'✓':'')+'</button>';
+  h+='<div class="code">'+esc(r.cls)+'</div>';
+  h+= prints(r)
+    ? '<button class="qty'+(edited?' edited':'')+'" data-qty="'+id+'">'+q+'장</button>'
+    : '<button class="qty" data-qty="'+id+'" style="opacity:.55">'+q+'명</button>';
+  h+='</div><div class="what">'+content(r)+'</div>';
+  if(r.note)h+='<div class="meta">'+esc(r.note)+'</div>';
+  if(!r.sure)h+='<div class="meta warn">확인 필요</div>';
+  if(r.invalid)h+='<div class="meta warn">Day가 1보다 작아요. 번호를 고쳐주세요.</div>';
+
+  if(isAsk(r)){
+    h+='<input class="val" data-src="'+id+'" value="'+esc(r.it.src||'')+'" placeholder="어디서 나오는지 — 예: Bricks reading 30-1">';
+  }
+  if(r.kind==='manual'||r.kind==='each'||r.kind==='blank'){
+    const lv=lastVal(id,sel);
+    h+='<input class="val" data-val="'+id+'" value="'+esc(e.val||'')+'" placeholder="'+(lv?'지난번('+lv.dt.slice(5)+'): '+esc(lv.val):(r.kind==='each'?'이 날 뽑을 것 직접 쓰기 — 예: Day45 1명(40문제) / Day12·13 2명(80문제)'
+        :r.kind==='blank'?'어떤 시험인지 — 예: 품사':'이번에 볼 범위 입력'))+'">';
+  }
+  if(r.kind==='vocab')
+    h+='<textarea class="memo" data-memo="'+id+'" placeholder="받은 단어 / 범위">'+esc(e.memo||'')+'</textarea>';
+  const acts=[];
+  if(r.num!=null)acts.push('<button class="notebtn" data-fix="'+id+'">'+r.ul+' 번호 고치기</button>');
+  acts.push('<button class="notebtn'+(e.note?' has':'')+'" data-open="'+id+'">'+(e.note?'특이사항 있음':'특이사항 적기')+'</button>');
+  acts.push(r.it.once
+    ? '<button class="notebtn" data-del="'+id+'">이 시험 지우기</button>'
+    : '<button class="notebtn" data-skip="'+id+'">이 날은 건너뛰기</button>');
+  h+='<div class="acts">'+acts.join('')+'</div>';
+  if(open[id]||e.note)
+    h+='<textarea class="memo" data-note="'+id+'" placeholder="결석 / 시험 안 봄 / 재시험 대상 / 지난주 못 본 애">'+esc(e.note||'')+'</textarea>';
+  return h+'</div>';
+}
+
+function viewDay(){
+  const rows=forDate(sel), wd=parse(sel).getDay();
+  const sheets=rows.filter(prints).reduce((s,r)=>s+qtyOf(r),0);
+  let h='<div class="total"><b>'+sheets+'</b><span>장 뽑으면 돼요 · 시험 '+rows.length+'개</span></div>';
+  if(RULES[wd])h+='<div class="rule">'+RULES[wd]+'</div>';
+  if(!rows.length)return h+'<div class="sec"><div class="empty">이 날은 0교시 시험이 없어요.</div></div>';
+
+  const isNeed=r=>r.kind==='vocab'||r.kind==='each';
+  const need=rows.filter(isNeed);
+  const mine=rows.filter(r=>!isNeed(r)&&prints(r));
+  const self=rows.filter(r=>!prints(r));
+  const sec=(t,sub,list,empty)=>'<div class="sec"><div class="sec-h"><b>'+t+'</b><span>'+sub+'</span></div>'
+    +(list.length?list.map(rowHTML).join(''):'<div class="empty">'+empty+'</div>')+'</div>';
+  h+=sec('단어', '애들이 알려줘야 함 · '+need.reduce((a,r)=>a+qtyOf(r),0)+'장', need, '없음');
+  BOOKG.forEach(g=>{
+    const list=mine.filter(r=>bookGroup(r)===g.t);
+    if(list.length)h+=sec(g.t, '그대로 뽑으면 됨 · '+list.reduce((a,r)=>a+qtyOf(r),0)+'장', list, '없음');
+  });
+  h+=sec('자체교재', '뽑지 말고 Day만 적어주기', self, '없음');
+  h+= addOpen ? addForm() : '<div class="toolbar"><button class="btn ghost" data-once="1">이 날 시험 추가</button></div>';
+  return h;
+}
+
+function addForm(){
+  return '<div class="item" style="margin-top:12px">'
+   +'<div class="line1"><b>이 날만 시험 추가</b></div><div class="fields">'
+   +'<div><label>반</label><input id="ac" placeholder="예: TPV"></div>'
+   +'<div><label>인원(장수)</label><input id="an" type="number" placeholder="0"></div>'
+   +'<div><label>종류</label><select id="ak">'
+     +'<option value="vocab">단어 (애들이 알려줘야 함)</option>'
+     +'<option value="blank">백지</option>'
+     +'<option value="set">내용 직접 쓰기</option>'
+     +'<option value="each">각자 다름</option></select></div>'
+   +'<div><label>비고</label><input id="ao" placeholder="메모"></div>'
+   +'<div style="grid-column:1/-1"><label>교재 / 내용 (예: Bricks reading 30-1 Unit 7)</label><input id="at" placeholder="비워도 돼요"></div>'
+   +'</div><div class="toolbar"><button class="btn" data-addok="1">추가</button>'
+   +'<button class="btn ghost" data-addcancel="1">취소</button></div></div>';
+}
+
+function viewWeek(){
+  const mo=monday(sel), today=ymd(new Date());
+  let h='<div class="sec"><div class="wk">';
+  for(let i=0;i<5;i++){
+    const d=new Date(mo); d.setDate(d.getDate()+i);
+    const ds=ymd(d), rows=forDate(ds);
+    const sh=rows.filter(r=>!(r.it.noprint||r.kind==='fixed')).reduce((s,r)=>s+(r.n||0),0);
+    h+='<div class="wkday'+(ds===today?' today':'')+'"><h4>'+DAYK[d.getDay()]+'<em>'+(d.getMonth()+1)+'.'+d.getDate()+'</em>'+(sh?'<i>'+sh+'장</i>':'')+'</h4>';
+    if(!rows.length)h+='<div class="wkitem f">시험 없음</div>';
+    rows.forEach(r=>{
+      const c=r.kind==='vocab'?'v':r.kind==='fixed'?'f':'a';
+      const t=r.kind==='vocab'?((r.src||'단어')+(r.num!=null?' '+r.ul+' '+(r.invalid?'?':r.num):'')):r.kind==='each'?'각자 다름':r.kind==='blank'?'백지':r.kind==='fixed'?'자체교재'
+        :r.kind==='set'?r.label:r.kind==='book'?(r.it.noprint?'자체교재':r.book)+' '+(r.ul||'Day')+' '+(r.invalid?'?':r.num)+(r.it.fmt?' '+r.it.fmt:''):r.book;
+      h+='<div class="wkitem '+c+'"><b>'+esc(r.cls)+'</b> '+esc(t)+' <span style="color:var(--ink-soft)">'+(r.n||0)+(prints(r)?'장':'명')+'</span></div>';
+    });
+    h+='</div>';
+  }
+  return h+'</div></div><div class="note">노란 줄 = 단어 받아야 하는 것. 파란 글씨 = 자동. 회색 = 자체교재. 오른쪽 장수는 자체교재를 뺀, 뽑아야 하는 숫자예요.</div>';
+}
+
+function itemSummary(it){
+  if(it.kind==='vocab')return it.src||'단어시험';
+  if(it.kind==='each')return (it.src||'각자 다름')+' · 매번 바뀜';
+  if(it.kind==='blank')return '백지';
+  if(it.kind==='set')return it.label||'내용 직접';
+  if(it.kind==='manual')return (it.book||'')+' · 직접 입력';
+  if(it.kind==='fixed')return '자체교재';
+  if(it.kind==='book')return (it.noprint?'자체교재':(it.book||'교재'))
+    +' '+(it.ul||'Day')+' 자동'+(it.fmt?' · '+it.fmt:'');
+  return it.kind;
+}
+function itemFields(it){
+  const f=(k,l,t)=>'<div><label>'+l+'</label><input type="'+t+'" data-k="'+k+'" data-id="'+it.id+'" value="'+esc(it[k]==null?'':it[k])+'"></div>';
+  const numbered=it.kind==='book'||it.base!=null;
+  return '<div class="fields">'
+   +f('cls','반','text')+f('n','인원','number')
+   +'<div><label>종류</label><select data-k="kind" data-id="'+it.id+'">'
+     +Object.keys(KIND).map(k=>'<option value="'+k+'"'+(it.kind===k?' selected':'')+'>'+KIND[k].label+'</option>').join('')
+     +'</select></div>'
+   +(it.once? f('once','그 날짜','date')
+      :'<div><label>매주 요일</label><select data-k="wd" data-id="'+it.id+'">'
+        +[1,2,3,4,5].map(w=>'<option value="'+w+'"'+(it.wd===w?' selected':'')+'>'+DAYK[w]+'요일</option>').join('')+'</select></div>')
+   +((it.kind==='vocab'||it.kind==='each'||it.kind==='blank')?f('src','어디서 나오는지','text'):'')
+   +(it.kind==='set'?f('label','내용','text'):'')
+   +(it.kind==='manual'?f('book','교재','text'):'')
+   +(numbered? (it.kind==='book'?f('book','교재','text'):'')+f('ul','번호 이름','text')
+       +f('anchor','기준일','date')+f('base','그날 번호','number')
+       +'<div><label>주마다</label><select data-k="step" data-id="'+it.id+'"><option value="1"'+(it.step===1?' selected':'')+'>+1</option><option value="-1"'+(it.step===-1?' selected':'')+'>-1</option></select></div>'
+       +f('fmt','쓰는 방식','text') : '')
+   +'<div><label>시험지</label><select data-k="noprint" data-id="'+it.id+'"><option value="">내가 뽑음</option><option value="1"'+(it.noprint?' selected':'')+'>자체교재 (안 뽑음)</option></select></div>'
+   +(it.once?'':f('from','이 날부터','date'))
+   +f('note','메모','text')
+   +'</div><div class="toolbar">'
+   +'<button class="mini" data-off="'+it.id+'">'+(it.off?'다시 보게 하기':'이 시험 안 보기')+'</button>'
+   +'<button class="mini" data-del="'+it.id+'">삭제</button>'
+   +'<button class="mini" data-close="'+it.id+'">닫기</button></div>';
+}
+function setRow(it){
+  const on=!!editing[it.id];
+  return '<div class="srow'+(it.off?' isoff':'')+(on?' open':'')+'">'
+   +'<div class="sline" data-edit="'+it.id+'">'
+   +'<b>'+esc(it.cls)+'</b><span>'+esc(itemSummary(it))+'</span>'
+   +'<em>'+(it.n||0)+'명</em>'
+   +(it.off?'<u class="warn">안 봄</u>':'')+(it.sure===false?'<u class="warn">확인</u>':'')
+   +'<i>'+(on?'▲':'수정')+'</i></div>'
+   +(on?itemFields(it):'')+'</div>';
+}
+function viewSet(){
+  const act=cfg.items;
+  let h='<div class="note">'+(WORKER?'이 설정은 <b>링크를 가진 선생님 모두가 같이 보고 고칩니다.</b> (v'+SEEDV+' · rev '+rev+')':'지금은 <b>내 브라우저에만</b> 저장돼요. 파일 맨 위 WORKER 주소를 채우면 다 같이 쓰게 됩니다.')+' 한 줄을 누르면 그 시험만 펼쳐서 고칠 수 있어요. <b class="warn">확인</b>은 제가 확신 못 한 부분, <b class="warn">안 봄</b>은 시험을 안 보는 반(회색)이에요.</div>'
+   +'<div class="toolbar"><button class="btn ghost" data-export="1">백업 복사</button>'
+   +'<button class="btn danger" data-reset="1">처음 상태로</button></div>';
+  for(let w=1;w<=5;w++){
+    const list=act.filter(i=>!i.once&&i.wd===w).sort((a,b)=>cidx(a.cls)-cidx(b.cls)||a.cls.localeCompare(b.cls));
+    const sheets=list.filter(i=>!i.off&&!(i.noprint||i.kind==='fixed')).reduce((a,i)=>a+(i.n||0),0);
+    h+='<div class="grp"><h3>'+DAYK[w]+'요일 <span style="font-weight:500;color:var(--ink-soft)">'+list.length+'개 · '+sheets+'장</span>'
+      +'<button class="mini" style="float:right" data-addday="'+w+'">추가</button></h3>';
+    h+= list.length? list.map(setRow).join('') : '<div class="empty">시험 없음</div>';
+    h+='</div>';
+  }
+  const ones=act.filter(i=>i.once).sort((a,b)=>a.once.localeCompare(b.once)||cidx(a.cls)-cidx(b.cls));
+  if(ones.length){
+    h+='<div class="grp"><h3>그 날만 <span style="font-weight:500;color:var(--ink-soft)">'+ones.length+'개</span></h3>';
+    h+=ones.map(it=>'<div class="daytag">'+it.once.slice(5).replace('-','/')+'</div>'+setRow(it)).join('');
+    h+='</div>';
+  }
+  return h;
+}
+function resolve0(it){return {it,kind:it.kind,book:it.book||''}}
+
+function wire(){
+  const mo=sel.slice(0,7);
+  document.querySelectorAll('[data-got]').forEach(b=>b.onclick=async()=>{
+    const e=entry(sel,b.dataset.got); e.got=!e.got; await saveLog(mo); render();
+  });
+  document.querySelectorAll('[data-memo]').forEach(t=>t.onchange=async()=>{
+    entry(sel,t.dataset.memo).memo=t.value; await saveLog(mo); toast('저장');
+  });
+  document.querySelectorAll('[data-note]').forEach(t=>t.onchange=async()=>{
+    entry(sel,t.dataset.note).note=t.value; await saveLog(mo); toast('저장'); render();
+  });
+  document.querySelectorAll('[data-val]').forEach(t=>t.onchange=async()=>{
+    entry(sel,t.dataset.val).val=t.value; await saveLog(mo); toast('저장');
+  });
+  document.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>{open[b.dataset.open]=!open[b.dataset.open];render()});
+  document.querySelectorAll('[data-qty]').forEach(b=>b.onclick=async()=>{
+    const it=cfg.items.find(x=>x.id===b.dataset.qty), e=entry(sel,it.id);
+    const v=prompt('이 날 뽑을 장수 (반 인원 '+(it.n||0)+'명)', e.qty!=null?e.qty:(it.n||0));
+    if(v===null)return; const n=parseInt(v,10); if(isNaN(n))return;
+    e.qty=n; await saveLog(mo); render();
+  });
+  document.querySelectorAll('[data-fix]').forEach(b=>b.onclick=async()=>{
+    const it=cfg.items.find(x=>x.id===b.dataset.fix);
+    const cur=it.base+it.step*weeksBetween(it.anchor,sel);
+    const v=prompt('이 날 실제로 보는 '+(it.ul||(it.kind==='book'?'Day':'Unit'))+' 번호는?',cur); if(v===null)return;
+    const n=parseInt(v,10); if(isNaN(n))return;
+    it.anchor=sel; it.base=n; it.sure=true; await saveCfg(); render(); toast('기준을 다시 맞췄어요');
+  });
+  document.querySelectorAll('[data-skip]').forEach(b=>b.onclick=async()=>{
+    if(!confirm('이 날은 이 시험을 안 보는 걸로 할까요? 교재 Day는 그만큼 밀립니다.'))return;
+    const it=cfg.items.find(x=>x.id===b.dataset.skip);
+    it.skip=(it.skip||[]).concat([sel]); await saveCfg(); render(); toast('건너뛰었어요');
+  });
+  const once=document.querySelector('[data-once]');
+  if(once)once.onclick=()=>{addOpen=true;render()};
+  const ac=document.querySelector('#ac');
+  if(ac)ac.oninput=()=>{
+    const n=N[ac.value.trim().toUpperCase()];
+    if(n!=null)document.querySelector('#an').value=n;
+  };
+  const cancel=document.querySelector('[data-addcancel]');
+  if(cancel)cancel.onclick=()=>{addOpen=false;render()};
+  const ok=document.querySelector('[data-addok]');
+  if(ok)ok.onclick=async()=>{
+    const c=(document.querySelector('#ac').value||'').trim().toUpperCase();
+    if(!c){toast('반 이름을 넣어주세요');return}
+    const kind=document.querySelector('#ak').value;
+    const txt=(document.querySelector('#at').value||'').trim();
+    const memo=(document.querySelector('#ao').value||'').trim();
+    const nv=parseInt(document.querySelector('#an').value,10);
+    const it={id:'u'+Date.now(),cls:c,kind,once:sel,n:isNaN(nv)?(N[c]||0):nv,sure:true,off:false};
+    if(memo)it.note=memo;
+    if(txt){ if(kind==='set')it.label=txt; else it.src=txt; }
+    cfg.items.push(it); addOpen=false; await saveCfg(); render(); toast(c+' 추가했어요');
+  };
+  document.querySelectorAll('[data-k]').forEach(el=>el.onchange=async()=>{
+    const it=cfg.items.find(x=>x.id===el.dataset.id), k=el.dataset.k;
+    it[k]=(k==='wd'||k==='step'||k==='base'||k==='n')?parseInt(el.value,10):(k==='noprint'?(el.value?true:false):el.value);
+    if(k!=='cls'&&k!=='n')it.sure=true;
+    await saveCfg(); render();
+  });
+  document.querySelectorAll('[data-off]').forEach(b=>b.onclick=async()=>{
+    const it=cfg.items.find(x=>x.id===b.dataset.off); it.off=!it.off; await saveCfg(); render();
+  });
+  document.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{
+    if(!confirm('이 시험을 지울까요?'))return;
+    cfg.items=cfg.items.filter(x=>x.id!==b.dataset.del); await saveCfg(); render();
+  });
+  document.querySelectorAll('[data-src]').forEach(t=>t.onchange=async()=>{
+    cfg.items.find(x=>x.id===t.dataset.src).src=t.value; await saveCfg(); toast('저장'); render();
+  });
+  document.querySelectorAll('[data-addto]').forEach(b=>b.onclick=async()=>{
+    const c=b.dataset.addto;
+    cfg.items.push({id:'u'+Date.now(),cls:c,kind:'vocab',wd:1,n:N[c]||0,sure:true,off:false});
+    await saveCfg(); render();
+  });
+  document.querySelectorAll('[data-edit]').forEach(el=>el.onclick=()=>{
+    const id=el.dataset.edit; editing={}; editing[id]=!editing[id]; render();
+  });
+  document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>{editing={};render()});
+  document.querySelectorAll('[data-addday]').forEach(b=>b.onclick=async()=>{
+    const id='u'+Date.now();
+    cfg.items.push({id,cls:'새 반',kind:'vocab',wd:+b.dataset.addday,n:0,sure:true,off:false});
+    editing={}; editing[id]=true; await saveCfg(); render();
+  });
+  const add=document.querySelector('[data-add]');
+  if(add)add.onclick=async()=>{
+    const cls=prompt('반 이름'); if(!cls)return;
+    const c=cls.trim().toUpperCase();
+    cfg.items.push({id:'u'+Date.now(),cls:c,kind:'vocab',wd:1,n:N[c]||0,sure:true,off:false});
+    await saveCfg(); render();
+  };
+  const ex=document.querySelector('[data-export]');
+  if(ex)ex.onclick=()=>{const s=JSON.stringify(cfg);
+    navigator.clipboard?navigator.clipboard.writeText(s).then(()=>toast('복사했어요'),()=>prompt('복사해 두세요',s)):prompt('복사해 두세요',s)};
+  const rs=document.querySelector('[data-reset]');
+  if(rs)rs.onclick=async()=>{if(!confirm('설정을 처음 상태로 되돌릴까요?'))return;cfg=seed();await saveCfg();render()};
+}
+
+let tt;
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),1500)}
+
+async function go(d){
+  sel=d; open={}; addOpen=false;
+  const mo=sel.slice(0,7);
+  await loadLog(mo); await loadLog(prevMonth(mo));
+  render();
+}
+$('#prev').onclick=()=>go(shift(sel,-1));
+$('#next').onclick=()=>go(shift(sel,1));
+$('#btoday').onclick=()=>go(ymd(new Date()));
+$('#btmr').onclick=()=>go(shift(ymd(new Date()),1));
+$('#dpick').onchange=e=>{if(e.target.value)go(e.target.value)};
+$('#bsync').onclick=async()=>{await load();await go(sel);toast(WORKER?'다른 선생님이 고친 것까지 불러왔어요':'새로 불러왔어요')};
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{tab=t.dataset.t;render()});
+(async()=>{await load();await go(ymd(new Date()))})();
+</script>
+</body>
+</html>
