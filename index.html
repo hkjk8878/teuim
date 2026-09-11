@@ -315,7 +315,7 @@ const RULES={};
 
 let cfg=seed(), logs={}, sel=null, tab='day', memory=false, open={}, addOpen=false, editing={};
 let rtOpen=null, rtSel={}, rtDate='', rtWhat='', rtRound=1, rtKind='vocab', rtAll=false;
-let afCls='', afNew='', afKind='retest', afDate='', afN='', afWhat='', afNote='', afPrint='', afSel={}, afRound=1, afRKind='vocab';
+let afCls='', afNew='', afKind='retest', afDate='', afN='', afWhat='', afNote='', afPrint='', afSel={}, afRound=1, afRKind='vocab', afRep='one';
 
 const pad=n=>String(n).padStart(2,'0');
 const ymd=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
@@ -677,7 +677,7 @@ function edtPanel(r){
         +'</select></div>'
       +'<div><label>적용</label><select id="ev3">'
         +'<option value="one"'+(edt.v3==='all'?'':' selected')+'>이 날만</option>'
-        +'<option value="all"'+(edt.v3==='all'?' selected':'')+'>앞으로 계속</option></select></div>'
+        +'<option value="all"'+(edt.v3==='all'?' selected':'')+'>이 날부터 매주 계속</option></select></div>'
       +'<div style="grid-column:1/-1"><label>'+(c.book||cur==='self'?'어디까지 (예: Day 5)':'범위 / 내용')+'</label>'
       +'<input id="ev2" value="'+esc(edt.v2||'')+'" placeholder="비워도 돼요"></div></div>',
       '바꾸기');
@@ -785,6 +785,10 @@ function addForm(){
        +'<div><label>무슨 시험</label><select id="arw">'
        +RCH.map(c=>'<option value="'+c.v+'"'+(afRKind===c.v?' selected':'')+'>'+c.t+'</option>').join('')
        +'</select></div>':'')
+   +(afKind==='retest'?'':'<div><label>반복</label><select id="arp">'
+       +'<option value="one"'+(afRep==='one'?' selected':'')+'>이 날만</option>'
+       +'<option value="week"'+(afRep==='week'?' selected':'')+'>매주 '+DAYK[parse(afDate||sel).getDay()]+'요일마다</option>'
+       +'</select></div>')
    +'<div><label>비고</label><input id="ao" value="'+esc(afNote)+'" placeholder="메모"></div>'
    +'<div style="grid-column:1/-1"><label>'+(bookFor(afKind==='retest'?afRKind:afKind, cls)
        ? bookFor(afKind==='retest'?afRKind:afKind, cls)+' — 어디까지' : '범위 / 내용')+'</label><input id="at" value="'+esc(afWhat)+'" placeholder="'+(bookFor(afKind==='retest'?afRKind:afKind, cls)?'예: Day 5':'예: Unit 7 / Day 15')+'"></div>'
@@ -1080,13 +1084,14 @@ function wire(){
     const pp=g('#ap'); if(pp!==null)afPrint=pp;
     const rr=g('#ar'); if(rr!==null)afRound=parseInt(rr,10)||1;
     const rw=g('#arw'); if(rw!==null)afRKind=rw;
+    const rp=g('#arp'); if(rp!==null)afRep=rp;
   };
   const once=document.querySelector('[data-once]');
   if(once)once.onclick=()=>{
     addOpen=true; afDate=sel; afKind='retest'; afCls=afCls||allClasses()[0];
-    afNew=''; afN=''; afWhat=''; afNote=''; afPrint=''; afSel={}; afRound=1; afRKind='vocab'; render();
+    afNew=''; afN=''; afWhat=''; afNote=''; afPrint=''; afSel={}; afRound=1; afRKind='vocab'; afRep='one'; render();
   };
-  ['#ac','#ak','#ar','#arw'].forEach(id=>{
+  ['#ac','#ak','#ar','#arw','#arp','#ad'].forEach(id=>{
     const el=document.querySelector(id);
     if(el)el.onchange=()=>{grabAF(); if(id==='#ac')afSel={}; afN=''; render()};
   });
@@ -1105,7 +1110,9 @@ function wire(){
     const nv=parseInt(afN,10);
     const n=isNaN(nv)?(afKind==='retest'?(picked.length||1):(N[c]||0)):nv;
     const ch=choice(afKind);
-    const it={id:'u'+Date.now(),cls:c,kind:ch.kind,once:afDate,n,sure:true,off:false};
+    const it={id:'u'+Date.now(),cls:c,kind:ch.kind,n,sure:true,off:false};
+    if(afKind!=='retest'&&afRep==='week'){ it.wd=parse(afDate).getDay(); it.from=afDate }
+    else { it.once=afDate }
     if(ch.kind==='retest'){ it.names=picked; it.round=afRound; it.rk=afRKind; it.src=afWhat||''; }
     else if(ch.kind==='set'){ it.label=[bookFor(afKind,c),afWhat].filter(Boolean).join(' ')||'시험'; }
     else if(afWhat){ it.src=afWhat; }
