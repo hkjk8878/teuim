@@ -1074,7 +1074,6 @@ function wire(){
     armed=null;
     const en=entry(sel,id), v=(en.imgs||[])[+i];
     en.imgs.splice(+i,1);
-    if(WORKER&&v&&v.indexOf('data:')!==0){ try{ await fetch(WORKER+'/img?del=1&id='+encodeURIComponent(v)) }catch(e){} }
     await saveLog(sel.slice(0,7)); render();
   });
   document.querySelectorAll('[data-pass]').forEach(b=>b.onclick=async()=>{
@@ -1103,8 +1102,18 @@ function wire(){
     const n=isNaN(cnt)?(who.length||1):cnt;
     const rr=parseInt((document.querySelector('#rtr')||{}).value,10)||rtRound;
     const rk=(document.querySelector('#rtk')||{}).value||rtKind;
-    cfg.items.push({id:'r'+Date.now(),cls:it.cls,kind:'retest',once:rtDate,n,
+    const nid='r'+Date.now();
+    cfg.items.push({id:nid,cls:it.cls,kind:'retest',once:rtDate,n,
       names:who, round:rr, rk, src:rtWhat||'', sure:true, off:false});
+    // 오늘 붙여둔 답지 사진을 재시험 날짜로 같이 가져감
+    const src0=entry(sel,it.id), imgs=(src0.imgs||[]).slice();
+    if(imgs.length){
+      await loadLog(rtDate.slice(0,7));
+      const m2=rtDate.slice(0,7);
+      logs[m2][rtDate]=logs[m2][rtDate]||{};
+      logs[m2][rtDate][nid]=Object.assign(logs[m2][rtDate][nid]||{},{imgs});
+      await saveLog(m2);
+    }
     const d=rtDate; rtOpen=null; await saveCfg(); render();
     toast(d.slice(5)+'에 '+it.cls+' '+roundName(rr)+' '+n+'장');
   };
