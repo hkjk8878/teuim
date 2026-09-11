@@ -69,6 +69,9 @@
   .top{display:flex;gap:9px;align-items:center}
   .check{width:23px;height:23px;flex:0 0 23px;border:1.5px solid var(--ink);border-radius:3px;background:#fff;cursor:pointer;font-size:14px;line-height:21px;text-align:center;padding:0;font-family:inherit;color:var(--ink)}
   .code{font-weight:700;font-size:15px}
+  .bk{font-family:inherit;font-size:12px;font-weight:500;color:var(--ink-soft);
+      background:none;border:none;padding:0 0 0 5px;cursor:pointer;text-decoration:underline;
+      text-decoration-style:dotted;text-underline-offset:2px}
   .qty{margin-left:auto;flex:0 0 auto;border:1px solid rgba(0,0,0,.2);background:rgba(255,255,255,.7);border-radius:3px;font-size:13px;font-weight:700;padding:2px 8px;cursor:pointer;font-family:inherit;color:var(--ink)}
   .qty.edited{border-color:var(--red);color:var(--red)}
   .what{font-size:14px;margin-top:3px}
@@ -158,6 +161,7 @@
       <button class="chip" id="btmr">내일</button>
       <input type="date" id="dpick" class="chip" style="padding:4px 10px">
       <button class="chip" id="bsync">최신으로</button>
+      <button class="chip" id="binst" style="display:none;background:#3C7D69;color:#fff;border-color:#3C7D69">앱으로 설치</button>
     </div>
     <div class="tabs">
       <button class="tab on" data-t="day">그날 시험</button>
@@ -191,7 +195,7 @@ const N={TWC:5,TPG:9,TPA:3,THA:6,TPP:10,TPV:7,TPD:7,TPC:10,THI:10,TPN:7,
   TPH:10,TPT:9,TPW:10,TMA:3,TPQ:11,TPX:5,TPO:5,
   TMX:9,TMP:8,TMG:8,TMB:7,TPF:4,TP1:5,TM1:8};
 
-const SEEDV=6;
+const SEEDV=7;
 
 /* 반별 명단 — 시간표에서 읽음. 틀린 이름은 아래 ROSTER에서 고치면 됩니다. */
 const ROSTER={
@@ -232,7 +236,17 @@ function roster(cls){
 function seed(){
   let k=0;
   const A=o=>Object.assign({id:'s'+(++k),sure:true,off:false,n:N[o.cls]},o);
-  return {v:SEEDV, items:[
+  const B0='2000-01-01';
+  const books={};
+  const B=(cls,name)=>{ books[cls]={}; books[cls][B0]=name };
+  B('THA','파닉스'); B('THI','Bricks reading 30-1');
+  B('TPH','뜯중 1200'); B('TPT','뜯중 1200'); B('TMB','뜯중 1200');
+  B('TPN','뜯중 1800'); B('TPX','뜯중 1800'); B('TMX','뜯중 1800');
+  B('TMP','뜯중 1800'); B('TP1','뜯중 1800'); B('TM1','뜯중 1800');
+  B('TPO','워드마스터 중등 베이직'); B('TMG','워드마스터 중등 실력');
+  B('TMA','워드마스터 수능 2000'); B('TPF','워드마스터 수능 2000');
+  B('TPQ','새 교재 (추후 기입)');
+  return {v:SEEDV, books, items:[
 
   /* ── 매주 월요일 ── */
   A({cls:'TPV',kind:'vocab',wd:1}),
@@ -443,12 +457,28 @@ const CHOICES=[
 ];
 const choice=v=>CHOICES.find(c=>c.v===v)||CHOICES[0];
 /* 자체교재 반이 쓰는 교재 — 반을 고르면 자동으로 붙습니다 */
-const SELFBOOK={TMX:'뜯중 1800',TMP:'뜯중 1800',TMG:'워드마스터 중등 실력',TMB:'뜯중 1200',
-  TPF:'워드마스터 수능 2000',TP1:'뜯중 1800',TM1:'뜯중 1800',TPX:'뜯중 1800'};
+function applyChoice(it,v,date,text){
+  const c=choice(v);
+  ['book','fmt','label','src','noprint','base','anchor','step','ul','names','round','rk']
+    .forEach(k=>{ delete it[k] });
+  if(v==='retest'){ it.kind='retest'; it.round=1; it.rk='vocab'; it.names=[]; it.src=text||'' ; return }
+  if(v==='vocab'){ it.kind='vocab'; if(text)it.src=text; return }
+  if(v==='blank'){ it.kind='blank'; if(text)it.src=text; return }
+  if(v==='each'){ it.kind='each'; it.src=text||bookOf(it.cls,date)||''; return }
+  if(v==='free'){ it.kind='set'; it.label=text||'시험'; return }
+  if(v==='self'){
+    it.kind='book'; it.noprint=true; it.book=bookOf(it.cls,date)||'자체교재';
+    it.base=parseInt((text||'').replace(/\D/g,''),10)||1; it.anchor=date; it.step=1; it.ul='Day';
+    return;
+  }
+  it.kind='book'; it.book=c.book||'교재';
+  it.base=parseInt((text||'').replace(/\D/g,''),10)||1; it.anchor=date; it.step=1;
+  it.ul = v==='rd' ? '과' : 'Day';
+}
 const bookFor=(v,cls)=>{
   const c=CHOICES.find(x=>x.v===v);
   if(!c)return '';
-  if(v==='self')return '자체교재'+(SELFBOOK[cls]?' '+SELFBOOK[cls]:'');
+  if(v==='self'){ const b=bookOf(cls,sel); return '자체교재'+(b?' '+b:'') }
   return c.book||'';
 };
 const RCH=CHOICES.filter(c=>c.v!=='retest');          // 재시험 안에서 고르는 시험 종류
@@ -458,6 +488,19 @@ function rkLabel(rk,src,cls){
   return [head,src].filter(Boolean).join(' ');
 }
 const roundName=n=>'재'.repeat(Math.max(1,n||1))+'시험';
+/* 그 날짜에 쓰던 교재 — 바꾼 날 이전은 예전 교재가 그대로 남습니다 */
+function bookOf(cls,date){
+  const h=(cfg.books||{})[cls];
+  if(!h)return '';
+  let best='', bk='';
+  Object.keys(h).forEach(d=>{ if(d<=date && d>=best){ best=d; bk=h[d] } });
+  return bk;
+}
+function setBook(cls,date,name){
+  cfg.books=cfg.books||{};
+  cfg.books[cls]=cfg.books[cls]||{};
+  if(name) cfg.books[cls][date]=name; else delete cfg.books[cls][date];
+}
 const cidx=c=>{const i=CLSORD.indexOf(c);return i<0?900:i};
 function allClasses(){
   const set={};
@@ -481,6 +524,19 @@ const $=s=>document.querySelector(s);
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const qtyOf=(r)=>{const e=entry(sel,r.it.id);return e.qty!=null?e.qty:r.n};
 const prints=(r)=>r.kind==='retest'||!(r.it.noprint||r.kind==='fixed');  // 재시험은 늘 다시 뽑음
+function vOf(it){
+  if(it.kind==='retest')return 'retest';
+  if(it.kind==='vocab')return 'vocab';
+  if(it.kind==='blank')return 'blank';
+  if(it.kind==='each')return 'each';
+  if(it.noprint)return 'self';
+  const b=it.book||'';
+  if(/뜯중\s*1200/.test(b))return 't1200';
+  if(/뜯중\s*1800/.test(b))return 't1800';
+  if(/워드마스터/.test(b))return 'wm';
+  if(/리딩튜터/.test(b))return 'rd';
+  return 'free';
+}
 function tintOf(r){
   if(r.kind==='retest')return 't-retest';
   if(r.kind==='each')return 't-each';
@@ -517,7 +573,7 @@ function content(r){
     +' <span style="color:var(--ink-soft)">· 매번 바뀜, 아래에 직접 쓰기</span>';
   if(r.kind==='book'){
     const head=r.it.noprint?'자체교재':esc(r.book);
-    const tail=r.it.noprint&&r.book?' <span style="color:var(--ink-soft)">('+esc(r.book)+')</span>':'';
+    const tail='';
     return head+unit+(r.it.fmt?' <span style="color:var(--ink)">· '+esc(r.it.fmt)+'</span>':'')+tail;
   }
   return esc(r.book||'직접 입력');
@@ -539,7 +595,9 @@ function rowHTML(r){
   const q=qtyOf(r), edited=e.qty!=null&&e.qty!==r.n;
   let h='<div class="row '+k+' '+tintOf(r)+(r.kind==='vocab'&&e.got?' done':'')+'"><div class="top">';
   if(r.kind==='vocab')h+='<button class="check" data-got="'+id+'">'+(e.got?'✓':'')+'</button>';
-  h+='<div class="code">'+esc(r.cls)+'</div>';
+  const bk=bookOf(r.cls,sel);
+  h+='<div class="code">'+esc(r.cls)
+   +'<button class="bk" data-edt="book|'+id+'">('+(bk?esc(bk):'교재 적기')+')</button></div>';
   h+= prints(r)
     ? '<button class="qty'+(edited?' edited':'')+'" data-edt="qty|'+id+'">'+q+'장</button>'
     : '<button class="qty" data-edt="qty|'+id+'" style="opacity:.55">'+q+'명</button>';
@@ -582,6 +640,7 @@ function rowHTML(r){
   if(r.num!=null)acts.push('<button class="notebtn" data-edt="num|'+id+'">'+r.ul+' 번호 고치기</button>');
   acts.push('<button class="notebtn'+(e.note?' has':'')+'" data-open="'+id+'">'+(e.note?'특이사항 있음':'특이사항 적기')+'</button>');
   acts.push('<button class="notebtn" data-rt="'+id+'">재시험 잡기</button>');
+  acts.push('<button class="notebtn" data-edt="kind|'+id+'">종류 바꾸기</button>');
   acts.push('<button class="notebtn" data-edt="move|'+id+'">다른 날로 옮기기</button>');
   acts.push(r.it.once
     ? '<button class="notebtn" data-edt="del|'+id+'">이 시험 지우기</button>'
@@ -609,6 +668,34 @@ function edtPanel(r){
   if(t==='qty')
     return box('<div class="fields" style="margin:0"><div><label>이 날 뽑을 장수 (반 '+(r.n||0)+'명)</label>'
       +'<input type="number" id="ev" value="'+esc(edt.v!=null?edt.v:qtyOf(r))+'"></div></div>', '장수 바꾸기');
+  if(t==='kind'){
+    const cur=edt.v!=null?edt.v:vOf(r.it);
+    const c=choice(cur);
+    return box('<div class="fields" style="margin:0">'
+      +'<div><label>무슨 시험으로</label><select id="ev">'
+        +CHOICES.map(x=>'<option value="'+x.v+'"'+(cur===x.v?' selected':'')+'>'+x.t+'</option>').join('')
+        +'</select></div>'
+      +'<div><label>적용</label><select id="ev3">'
+        +'<option value="one"'+(edt.v3==='all'?'':' selected')+'>이 날만</option>'
+        +'<option value="all"'+(edt.v3==='all'?' selected':'')+'>앞으로 계속</option></select></div>'
+      +'<div style="grid-column:1/-1"><label>'+(c.book||cur==='self'?'어디까지 (예: Day 5)':'범위 / 내용')+'</label>'
+      +'<input id="ev2" value="'+esc(edt.v2||'')+'" placeholder="비워도 돼요"></div></div>',
+      '바꾸기');
+  }
+  if(t==='book'){
+    const h=(cfg.books||{})[r.cls]||{};
+    const hist=Object.keys(h).sort().map(d=>
+      '<div style="font-size:12px;color:var(--ink-soft);padding:2px 0">'
+      +(d==='2000-01-01'?'처음부터':d.replace(/-/g,'.').slice(2))+' · '+esc(h[d])
+      +' <button class="notebtn" data-bkdel="'+r.cls+'|'+d+'" style="padding:1px 6px">지움</button></div>').join('');
+    return box('<div class="fields" style="margin:0">'
+      +'<div style="grid-column:1/-1"><label>'+esc(r.cls)+' 교재 이름</label>'
+      +'<input id="ev" value="'+esc(edt.v!=null?edt.v:bookOf(r.cls,sel))+'" placeholder="예: 뜯어먹는 중등 1800"></div>'
+      +'<div style="grid-column:1/-1"><label>이 날부터 바뀜</label>'
+      +'<input type="date" id="ev2" value="'+esc(edt.v2||sel)+'"></div></div>'
+      +(hist?'<div style="margin-top:8px;font-size:11px;color:var(--ink-soft)">지금까지</div>'+hist:''),
+      '교재 저장');
+  }
   if(t==='del')
     return box('<div style="font-size:13px">이 시험을 지울까요?</div>', '지우기');
   if(t==='skip')
@@ -846,6 +933,11 @@ function wire(){
     }
     render();
   });
+  document.querySelectorAll('[data-bkdel]').forEach(b=>b.onclick=async()=>{
+    const [cls,d]=b.dataset.bkdel.split('|');
+    if(cfg.books&&cfg.books[cls])delete cfg.books[cls][d];
+    await saveCfg(); render();
+  });
   document.querySelectorAll('[data-edt]').forEach(b=>b.onclick=()=>{
     const [type,id]=b.dataset.edt.split('|');
     edt=(edt&&edt.id===id&&edt.type===type)?null:{id,type,v:null};
@@ -853,6 +945,13 @@ function wire(){
   });
   const eno=document.querySelector('[data-eno]');
   if(eno)eno.onclick=()=>{edt=null;render()};
+  const evsel=document.querySelector('#ev');
+  if(evsel&&edt&&edt.type==='kind')evsel.onchange=()=>{
+    edt.v=evsel.value;
+    edt.v2=(document.querySelector('#ev2')||{}).value||'';
+    edt.v3=(document.querySelector('#ev3')||{}).value||'one';
+    render();
+  };
   const eok=document.querySelector('[data-eok]');
   if(eok)eok.onclick=async()=>{
     const it=cfg.items.find(x=>x.id===edt.id), t=edt.type;
@@ -870,7 +969,35 @@ function wire(){
       if(it.skip)it.skip=it.skip.filter(x=>x>sel);
       edt=null; await saveCfg(); render(); toast('번호를 다시 맞췄어요'); return;
     }
-    if(t==='del'){
+    if(t==='kind'){
+    const cur=edt.v!=null?edt.v:vOf(r.it);
+    const c=choice(cur);
+    return box('<div class="fields" style="margin:0">'
+      +'<div><label>무슨 시험으로</label><select id="ev">'
+        +CHOICES.map(x=>'<option value="'+x.v+'"'+(cur===x.v?' selected':'')+'>'+x.t+'</option>').join('')
+        +'</select></div>'
+      +'<div><label>적용</label><select id="ev3">'
+        +'<option value="one"'+(edt.v3==='all'?'':' selected')+'>이 날만</option>'
+        +'<option value="all"'+(edt.v3==='all'?' selected':'')+'>앞으로 계속</option></select></div>'
+      +'<div style="grid-column:1/-1"><label>'+(c.book||cur==='self'?'어디까지 (예: Day 5)':'범위 / 내용')+'</label>'
+      +'<input id="ev2" value="'+esc(edt.v2||'')+'" placeholder="비워도 돼요"></div></div>',
+      '바꾸기');
+  }
+  if(t==='book'){
+    const h=(cfg.books||{})[r.cls]||{};
+    const hist=Object.keys(h).sort().map(d=>
+      '<div style="font-size:12px;color:var(--ink-soft);padding:2px 0">'
+      +(d==='2000-01-01'?'처음부터':d.replace(/-/g,'.').slice(2))+' · '+esc(h[d])
+      +' <button class="notebtn" data-bkdel="'+r.cls+'|'+d+'" style="padding:1px 6px">지움</button></div>').join('');
+    return box('<div class="fields" style="margin:0">'
+      +'<div style="grid-column:1/-1"><label>'+esc(r.cls)+' 교재 이름</label>'
+      +'<input id="ev" value="'+esc(edt.v!=null?edt.v:bookOf(r.cls,sel))+'" placeholder="예: 뜯어먹는 중등 1800"></div>'
+      +'<div style="grid-column:1/-1"><label>이 날부터 바뀜</label>'
+      +'<input type="date" id="ev2" value="'+esc(edt.v2||sel)+'"></div></div>'
+      +(hist?'<div style="margin-top:8px;font-size:11px;color:var(--ink-soft)">지금까지</div>'+hist:''),
+      '교재 저장');
+  }
+  if(t==='del'){
       cfg.items=cfg.items.filter(x=>x.id!==it.id); edt=null; await saveCfg(); render(); return;
     }
     if(t==='skip'){
@@ -1077,6 +1204,24 @@ $('#btmr').onclick=()=>go(shift(ymd(new Date()),1));
 $('#dpick').onchange=e=>{if(e.target.value)go(e.target.value)};
 $('#bsync').onclick=async()=>{await load();await go(sel);toast(WORKER?'다른 선생님이 고친 것까지 불러왔어요':'새로 불러왔어요')};
 document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{tab=t.dataset.t;render()});
+/* ── 갤럭시 앱 설치 버튼 ── */
+let deferredPrompt=null;
+window.addEventListener('beforeinstallprompt', e=>{
+  e.preventDefault(); deferredPrompt=e;
+  const b=$('#binst'); if(b)b.style.display='';
+});
+window.addEventListener('appinstalled', ()=>{
+  deferredPrompt=null;
+  const b=$('#binst'); if(b)b.style.display='none';
+  toast('설치했어요');
+});
+$('#binst').onclick=async()=>{
+  if(!deferredPrompt)return;
+  deferredPrompt.prompt();
+  try{ await deferredPrompt.userChoice }catch(e){}
+  deferredPrompt=null; $('#binst').style.display='none';
+};
+
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 }
