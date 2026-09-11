@@ -602,6 +602,7 @@ function rowHTML(r){
     ? '<button class="qty'+(edited?' edited':'')+'" data-edt="qty|'+id+'">'+q+'장</button>'
     : '<button class="qty" data-edt="qty|'+id+'" style="opacity:.55">'+q+'명</button>';
   h+='</div><div class="what">'+content(r)+'</div>';
+  if(r.it.once)h+='<div class="meta">이 날만</div>';
   if(r.note)h+='<div class="meta">'+esc(r.note)+'</div>';
   if(!r.sure)h+='<div class="meta warn">확인 필요</div>';
   if(r.invalid)h+='<div class="meta warn">Day가 1보다 작아요. 번호를 고쳐주세요.</div>';
@@ -844,6 +845,9 @@ function itemFields(it){
    +'<div><label>종류</label><select data-k="kind" data-id="'+it.id+'">'
      +Object.keys(KIND).map(k=>'<option value="'+k+'"'+(it.kind===k?' selected':'')+'>'+KIND[k].label+'</option>').join('')
      +'</select></div>'
+   +'<div><label>언제</label><select data-k="rep" data-id="'+it.id+'">'
+     +'<option value="week"'+(it.once?'':' selected')+'>매주</option>'
+     +'<option value="one"'+(it.once?' selected':'')+'>그 날만</option></select></div>'
    +(it.once? f('once','그 날짜','date')
       :'<div><label>매주 요일</label><select data-k="wd" data-id="'+it.id+'">'
         +[1,2,3,4,5].map(w=>'<option value="'+w+'"'+(it.wd===w?' selected':'')+'>'+DAYK[w]+'요일</option>').join('')+'</select></div>')
@@ -976,7 +980,10 @@ function wire(){
     if(t==='kind'){
       const v=val, text=((document.querySelector('#ev2')||{}).value||'').trim();
       const scope=(document.querySelector('#ev3')||{}).value||'one';
-      if(scope==='all'||it.once){
+      if(scope==='all'){
+        applyChoice(it,v,sel,text); it.sure=true;
+        if(it.once){ it.wd=parse(it.once).getDay(); it.from=it.once; delete it.once }
+      }else if(it.once){
         applyChoice(it,v,sel,text); it.sure=true;
       }else{
         const cp={id:'k'+Date.now(),cls:it.cls,once:sel,n:it.n,sure:true,off:false};
@@ -1125,6 +1132,11 @@ function wire(){
   };
   document.querySelectorAll('[data-k]').forEach(el=>el.onchange=async()=>{
     const it=cfg.items.find(x=>x.id===el.dataset.id), k=el.dataset.k;
+    if(k==='rep'){
+      if(el.value==='one'&&!it.once){ it.once=sel; delete it.wd; delete it.from }
+      else if(el.value==='week'&&it.once){ it.wd=parse(it.once).getDay(); it.from=it.once; delete it.once }
+      await saveCfg(); render(); return;
+    }
     it[k]=(k==='wd'||k==='step'||k==='base'||k==='n')?parseInt(el.value,10):(k==='noprint'?(el.value?true:false):el.value);
     if(k!=='cls'&&k!=='n')it.sure=true;
     await saveCfg(); render();
