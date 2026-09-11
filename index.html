@@ -68,6 +68,10 @@
   .wkitem.t-self  {border-left-color:#CFCEC3}
   .top{display:flex;gap:9px;align-items:center}
   .check{width:23px;height:23px;flex:0 0 23px;border:1.5px solid var(--ink);border-radius:3px;background:#fff;cursor:pointer;font-size:14px;line-height:21px;text-align:center;padding:0;font-family:inherit;color:var(--ink)}
+  .tg{font-family:inherit;font-size:12px;font-weight:600;padding:4px 9px;border-radius:999px;
+      border:1.5px solid rgba(0,0,0,.28);background:rgba(255,255,255,.7);color:var(--ink-soft);cursor:pointer;white-space:nowrap}
+  .tg.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .tg.pr.on{background:#1F7A3D;border-color:#1F7A3D}
   .code{font-weight:700;font-size:15px}
   .bk{font-family:inherit;font-size:12px;font-weight:500;color:var(--ink-soft);
       background:none;border:none;padding:0 0 0 5px;cursor:pointer;text-decoration:underline;
@@ -593,8 +597,10 @@ function render(){
 function rowHTML(r){
   const e=entry(sel,r.it.id), id=r.it.id, k=KIND[r.kind].cls;
   const q=qtyOf(r), edited=e.qty!=null&&e.qty!==r.n;
-  let h='<div class="row '+k+' '+tintOf(r)+(r.kind==='vocab'&&e.got?' done':'')+'"><div class="top">';
-  if(r.kind==='vocab')h+='<button class="check" data-got="'+id+'">'+(e.got?'✓':'')+'</button>';
+  const needPrint=prints(r);
+  let h='<div class="row '+k+' '+tintOf(r)+(needPrint&&e.pr?' done':'')+'"><div class="top">';
+  if(needPrint)
+    h+='<button class="tg pr'+(e.pr?' on':'')+'" data-pr="'+id+'">'+(e.pr?'뽑음 ✓':'뽑기')+'</button>';
   const bk=bookOf(r.cls,sel);
   h+='<div class="code">'+esc(r.cls)
    +'<button class="bk" data-edt="book|'+id+'">('+(bk?esc(bk):'교재 적기')+')</button></div>';
@@ -738,8 +744,14 @@ function rtPanel(r){
 
 function viewDay(){
   const rows=forDate(sel), wd=parse(sel).getDay();
-  const sheets=rows.filter(prints).reduce((s,r)=>s+qtyOf(r),0);
-  let h='<div class="total"><b>'+sheets+'</b><span>장 뽑으면 돼요 · 시험 '+rows.length+'개</span></div>';
+  const pr=rows.filter(prints);
+  const sheets=pr.reduce((s,r)=>s+qtyOf(r),0);
+  const donep=pr.filter(r=>entry(sel,r.it.id).pr);
+  const doneN=donep.reduce((s,r)=>s+qtyOf(r),0);
+  const left=sheets-doneN;
+  let h='<div class="total"><b>'+left+'</b><span>장 더 뽑으면 돼요'
+    +(doneN?' · '+doneN+'장 뽑음':'')+' · 전체 '+sheets+'장</span></div>'
+    +(sheets&&left===0?'<div class="rule" style="border-left-color:#1F7A3D;background:#EDF7EE">오늘 뽑을 거 다 뽑았어요</div>':'');
   if(RULES[wd])h+='<div class="rule">'+RULES[wd]+'</div>';
   h+= addOpen ? addForm() : '<div class="toolbar" style="margin:10px 0 0"><button class="btn ghost" data-once="1">＋ 시험 / 재시험 추가</button></div>';
   if(!rows.length)return h+'<div class="sec"><div class="empty">이 날은 0교시 시험이 없어요.</div></div>';
@@ -756,7 +768,9 @@ function viewDay(){
   h+=sec('단어', '애들이 알려줘야 함 · '+nd.reduce((a,r)=>a+qtyOf(r),0)+'장', nd, '없음', 't-vocab');
   BOOKG.forEach(g=>{
     const list=mine.filter(r=>bookGroup(r)===g.t);
-    if(list.length)h+=sec(g.t, '그대로 뽑으면 됨 · '+list.reduce((a,r)=>a+qtyOf(r),0)+'장', list, '없음',
+    if(list.length)h+=sec(g.t, '그대로 뽑으면 됨 · '
+      +list.filter(r=>!entry(sel,r.it.id).pr).reduce((a,r)=>a+qtyOf(r),0)+' / '
+      +list.reduce((a,r)=>a+qtyOf(r),0)+'장', list, '없음',
       g.t==='백지'?'t-blank':'t-book');
   });
   h+=sec('자체교재', '뽑지 말고 Day만 적어주기', self, '없음', 't-self');
@@ -901,8 +915,8 @@ function resolve0(it){return {it,kind:it.kind,book:it.book||''}}
 
 function wire(){
   const mo=sel.slice(0,7);
-  document.querySelectorAll('[data-got]').forEach(b=>b.onclick=async()=>{
-    const e=entry(sel,b.dataset.got); e.got=!e.got; await saveLog(mo); render();
+  document.querySelectorAll('[data-pr]').forEach(b=>b.onclick=async()=>{
+    const e=entry(sel,b.dataset.pr); e.pr=!e.pr; await saveLog(mo); render();
   });
   document.querySelectorAll('[data-memo]').forEach(t=>t.onchange=async()=>{
     entry(sel,t.dataset.memo).memo=t.value; await saveLog(mo); toast('저장');
