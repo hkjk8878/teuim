@@ -970,33 +970,25 @@ function wire(){
       edt=null; await saveCfg(); render(); toast('번호를 다시 맞췄어요'); return;
     }
     if(t==='kind'){
-    const cur=edt.v!=null?edt.v:vOf(r.it);
-    const c=choice(cur);
-    return box('<div class="fields" style="margin:0">'
-      +'<div><label>무슨 시험으로</label><select id="ev">'
-        +CHOICES.map(x=>'<option value="'+x.v+'"'+(cur===x.v?' selected':'')+'>'+x.t+'</option>').join('')
-        +'</select></div>'
-      +'<div><label>적용</label><select id="ev3">'
-        +'<option value="one"'+(edt.v3==='all'?'':' selected')+'>이 날만</option>'
-        +'<option value="all"'+(edt.v3==='all'?' selected':'')+'>앞으로 계속</option></select></div>'
-      +'<div style="grid-column:1/-1"><label>'+(c.book||cur==='self'?'어디까지 (예: Day 5)':'범위 / 내용')+'</label>'
-      +'<input id="ev2" value="'+esc(edt.v2||'')+'" placeholder="비워도 돼요"></div></div>',
-      '바꾸기');
-  }
-  if(t==='book'){
-    const h=(cfg.books||{})[r.cls]||{};
-    const hist=Object.keys(h).sort().map(d=>
-      '<div style="font-size:12px;color:var(--ink-soft);padding:2px 0">'
-      +(d==='2000-01-01'?'처음부터':d.replace(/-/g,'.').slice(2))+' · '+esc(h[d])
-      +' <button class="notebtn" data-bkdel="'+r.cls+'|'+d+'" style="padding:1px 6px">지움</button></div>').join('');
-    return box('<div class="fields" style="margin:0">'
-      +'<div style="grid-column:1/-1"><label>'+esc(r.cls)+' 교재 이름</label>'
-      +'<input id="ev" value="'+esc(edt.v!=null?edt.v:bookOf(r.cls,sel))+'" placeholder="예: 뜯어먹는 중등 1800"></div>'
-      +'<div style="grid-column:1/-1"><label>이 날부터 바뀜</label>'
-      +'<input type="date" id="ev2" value="'+esc(edt.v2||sel)+'"></div></div>'
-      +(hist?'<div style="margin-top:8px;font-size:11px;color:var(--ink-soft)">지금까지</div>'+hist:''),
-      '교재 저장');
-  }
+      const v=val, text=((document.querySelector('#ev2')||{}).value||'').trim();
+      const scope=(document.querySelector('#ev3')||{}).value||'one';
+      if(scope==='all'||it.once){
+        applyChoice(it,v,sel,text); it.sure=true;
+      }else{
+        const cp={id:'k'+Date.now(),cls:it.cls,once:sel,n:it.n,sure:true,off:false};
+        applyChoice(cp,v,sel,text);
+        cfg.items.push(cp);
+        it.hide=(it.hide||[]).concat([sel]);
+      }
+      edt=null; await saveCfg(); render(); toast('바꿨어요'); return;
+    }
+    if(t==='book'){
+      const d2=(document.querySelector('#ev2')||{}).value||sel;
+      setBook(it.cls, d2, val.trim());
+      edt=null; await saveCfg(); render();
+      toast(val.trim()? d2.slice(5)+'부터 '+val.trim() : '교재 지웠어요');
+      return;
+    }
   if(t==='del'){
       cfg.items=cfg.items.filter(x=>x.id!==it.id); edt=null; await saveCfg(); render(); return;
     }
