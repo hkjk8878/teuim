@@ -487,9 +487,11 @@ const bookFor=(v,cls)=>{
 };
 const RCH=CHOICES.filter(c=>c.v!=='retest');          // 재시험 안에서 고르는 시험 종류
 function rkLabel(rk,src,cls){
+  const head=bookFor(rk,cls);
+  if(head)return [head,src].filter(Boolean).join(' ');
   const c=CHOICES.find(x=>x.v===rk);
-  const head=bookFor(rk,cls) || (c?c.t:'');
-  return [head,src].filter(Boolean).join(' ');
+  const t=(c&&['vocab','blank','each'].indexOf(rk)>=0)?c.t:'';
+  return [t,src].filter(Boolean).join(' ');
 }
 const roundName=n=>'재'.repeat(Math.max(1,n||1))+'시험';
 /* 그 날짜에 쓰던 교재 — 바꾼 날 이전은 예전 교재가 그대로 남습니다 */
@@ -540,6 +542,18 @@ function vOf(it){
   if(/워드마스터/.test(b))return 'wm';
   if(/리딩튜터/.test(b))return 'rd';
   return 'free';
+}
+function rangeOf(r){
+  const e=entry(sel,r.it.id);
+  if(r.kind==='set')return r.label||'';
+  if(r.kind==='book')return (r.ul||'Day')+' '+(r.num!=null?r.num:'');
+  if(r.kind==='blank')return e.val||r.src||'';
+  if(r.kind==='manual')return e.val||'';
+  if(r.kind==='retest')return r.src||'';
+  let t=r.src||'';
+  if(r.num!=null)t=(t?t+' ':'')+(r.ul||'Unit')+' '+r.num;
+  if(!t&&e.memo)t=e.memo.replace(/\s+/g,' ').slice(0,40);
+  return t;
 }
 function tintOf(r){
   if(r.kind==='retest')return 't-retest';
@@ -947,11 +961,12 @@ function wire(){
       rtRound=Math.min(3,(src.round||1)+1);
       rtKind=src.rk||'vocab'; rtWhat=src.src||'';
     }else{
-      rtRound=1; rtWhat='';
-      rtKind = src.kind==='blank'?'blank' : src.kind==='vocab'?'vocab'
-        : /뜯중\s*1200/.test(src.book||'')?'t1200' : /뜯중\s*1800/.test(src.book||'')?'t1800'
-        : /워드마스터/.test(src.book||'')?'wm' : /리딩튜터/.test(src.book||'')?'rd'
-        : src.noprint?'self' : 'vocab';
+      rtRound=1;
+      const rr=forDate(sel).find(x=>x.it.id===src.id);
+      rtWhat = rr ? rangeOf(rr) : '';
+      rtKind = vOf(src);
+      if(rtKind==='free'&&src.kind==='book'&&src.book)
+        rtWhat = (src.book+' '+rtWhat).trim();   // 목록에 없는 교재면 이름째로
     }
     render();
   });
