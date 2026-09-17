@@ -245,6 +245,7 @@ function merge(old){
   fresh.items=fresh.items.concat(mine);
   fresh.books=Object.assign({}, fresh.books, old.books||{});
   fresh.roster=Object.assign({}, fresh.roster, old.roster||{});
+  fresh.teachers=Object.assign({}, fresh.teachers, old.teachers||{});
   return fresh;
 }
 function seed(){
@@ -261,7 +262,8 @@ function seed(){
   B('TMA','워드마스터 수능 2000'); B('TPF','워드마스터 수능 2000');
   B('TPQ','새 교재 (추후 기입)');
   const roster=JSON.parse(JSON.stringify(ROSTER0));
-  return {v:SEEDV, books, roster, items:[
+  const teachers={};
+  return {v:SEEDV, books, roster, teachers, items:[
 
   /* ── 매주 월요일 ── */
   A({cls:'TPV',kind:'vocab',wd:1}),
@@ -518,6 +520,12 @@ function bookOf(cls,date){
   Object.keys(h).forEach(d=>{ if(d<=date && d>=best){ best=d; bk=h[d] } });
   return bk;
 }
+function teacherOf(cls){
+  const T=(cfg&&cfg.teachers)||{};
+  if(T[cls])return T[cls];
+  const ps=cls.split('&').map(x=>x.trim()).map(x=>T[x]).filter(Boolean);
+  return ps.length?Array.from(new Set(ps)).join('·'):'';
+}
 function setBook(cls,date,name){
   cfg.books=cfg.books||{};
   cfg.books[cls]=cfg.books[cls]||{};
@@ -631,9 +639,10 @@ function rowHTML(r){
   let h='<div class="row '+k+' '+tintOf(r)+(needPrint&&e.pr?' done':'')+'"><div class="top">';
   if(needPrint)
     h+='<button class="tg pr'+(e.pr?' on':'')+'" data-pr="'+id+'">'+(e.pr?'뽑음 ✓':'뽑기')+'</button>';
-  const bk=bookOf(r.cls,sel);
+  const bk=bookOf(r.cls,sel), tc=teacherOf(r.cls);
   h+='<div class="code">'+esc(r.cls)
-   +'<button class="bk" data-edt="book|'+id+'">('+(bk?esc(bk):'교재 적기')+')</button></div>';
+   +'<button class="bk" data-edt="book|'+id+'">('+(bk?esc(bk):'교재 적기')+')</button>'
+   +'<button class="bk" data-edt="tch|'+id+'">'+(tc?esc(tc):'담임')+'</button></div>';
   h+= prints(r)
     ? '<button class="qty'+(edited?' edited':'')+'" data-edt="qty|'+id+'">'+q+'장</button>'
     : '<button class="qty" data-edt="qty|'+id+'" style="opacity:.55">'+q+'명</button>';
@@ -718,6 +727,12 @@ function edtPanel(r){
       +'<div style="grid-column:1/-1"><label>'+(c.book||cur==='self'?'어디까지 (예: Day 5)':'범위 / 내용')+'</label>'
       +'<input id="ev2" value="'+esc(edt.v2||'')+'" placeholder="비워도 돼요"></div></div>',
       '바꾸기');
+  }
+  if(t==='tch'){
+    return box('<div class="fields" style="margin:0"><div style="grid-column:1/-1">'
+      +'<label>'+esc(r.cls)+' 담임선생님</label>'
+      +'<input id="ev" value="'+esc(edt.v!=null?edt.v:teacherOf(r.cls))+'" placeholder="예: Daisy T"></div></div>',
+      '담임 저장');
   }
   if(t==='book'){
     const h=(cfg.books||{})[r.cls]||{};
@@ -865,7 +880,8 @@ function viewWeek(){
       const c=(r.kind==='vocab'?'v':r.kind==='fixed'?'f':'a')+' '+tintOf(r);
       const t=r.kind==='retest'?(roundName(r.it.round)+' '+(r.it.rk?rkLabel(r.it.rk,r.src,r.cls):(r.src||''))):r.kind==='vocab'?((r.src||'단어')+(r.num!=null?' '+r.ul+' '+(r.invalid?'?':r.num):'')):r.kind==='each'?'각자 다름':r.kind==='blank'?'백지':r.kind==='fixed'?'자체교재'
         :r.kind==='set'?r.label:r.kind==='book'?(r.it.noprint?'자체교재':r.book)+' '+(r.ul||'Day')+' '+(r.invalid?'?':r.num)+(r.it.fmt?' '+r.it.fmt:''):r.book;
-      h+='<div class="wkitem '+c+'"><b>'+esc(r.cls)+'</b> '+esc(t)+' <span style="color:var(--ink-soft)">'+(r.n||0)+(prints(r)?'장':'명')+'</span></div>';
+      const tt2=teacherOf(r.cls);
+      h+='<div class="wkitem '+c+'"><b>'+esc(r.cls)+'</b>'+(tt2?' <span style="color:var(--ink-soft);font-size:11px">'+esc(tt2)+'</span>':'')+' '+esc(t)+' <span style="color:var(--ink-soft)">'+(r.n||0)+(prints(r)?'장':'명')+'</span></div>';
     });
     h+='</div>';
   }
@@ -873,9 +889,11 @@ function viewWeek(){
 }
 
 function itemSummary(it){
-  if(it.kind==='vocab')return it.src||'단어시험';
-  if(it.kind==='each')return (it.src||'각자 다름')+' · 매번 바뀜';
-  if(it.kind==='blank')return '백지';
+  const add=t=>it.src?t+' · '+it.src:t;
+  if(it.kind==='vocab')return add('단어');
+  if(it.kind==='each')return add('각자 다름')+' · 매번 바뀜';
+  if(it.kind==='blank')return add('백지');
+  if(it.kind==='retest')return add(roundName(it.round));
   if(it.kind==='set')return it.label||'내용 직접';
   if(it.kind==='manual')return (it.book||'')+' · 직접 입력';
   if(it.kind==='fixed')return '자체교재';
@@ -937,7 +955,8 @@ function rosterSection(){
     const mismatch=list.length&&ns.length&&ns.some(n=>n!==list.length);
     h+='<div class="srow'+(on?' open':'')+'">'
      +'<div class="sline" data-ros="'+esc(c)+'"><b>'+esc(c)+'</b>'
-     +'<span>'+(list.length?esc(list.join(', ')):'명단 없음')+'</span>'
+     +'<span>'+(teacherOf(c)?'<b style="font-weight:600">'+esc(teacherOf(c))+'</b> · ':'')
+     +(list.length?esc(list.join(', ')):'명단 없음')+'</span>'
      +'<em>'+list.length+'명</em><i>'+(on?'▲':'수정')+'</i></div>';
     if(on){
       h+='<div style="padding:0 10px 10px">'
@@ -945,10 +964,13 @@ function rosterSection(){
          '<button class="nm'+(armed==='n'+c+nm?' on':'')+'" data-rosdel="'+esc(c)+'|'+esc(nm)+'">'
          +esc(nm)+(armed==='n'+c+nm?' 지울까요?':' ✕')+'</button>').join('')
        +(list.length?'':'<span style="font-size:12px;color:var(--ink-soft)">아직 없어요</span>')+'</div>'
-       +'<div class="fields" style="margin-top:8px"><div style="grid-column:1/-1">'
-       +'<label>이름 추가 (쉼표로 여러 명)</label><input id="rosin" placeholder="예: 김민준, 이서연"></div></div>'
+       +'<div class="fields" style="margin-top:8px">'
+       +'<div style="grid-column:1/-1"><label>담임선생님</label>'
+       +'<input id="rostch" value="'+esc(teacherOf(c))+'" placeholder="예: Daisy T"></div>'
+       +'<div style="grid-column:1/-1"><label>이름 추가 (쉼표로 여러 명)</label>'
+       +'<input id="rosin" placeholder="예: 김민준, 이서연"></div></div>'
        +'<div class="toolbar" style="margin:8px 0 0">'
-       +'<button class="btn" data-rosadd="'+esc(c)+'">추가</button>'
+       +'<button class="btn" data-rosadd="'+esc(c)+'">저장</button>'
        +(mismatch?'<button class="btn ghost" data-rosfix="'+esc(c)+'">시험지 장수도 '+list.length+'명으로</button>':'')
        +'<button class="btn ghost" data-rosno="1">닫기</button></div></div>';
     }
@@ -1071,6 +1093,11 @@ function wire(){
         it.hide=(it.hide||[]).concat([sel]);
       }
       edt=null; await saveCfg(); render(); toast('바꿨어요'); return;
+    }
+    if(t==='tch'){
+      cfg.teachers=cfg.teachers||{};
+      if(val.trim())cfg.teachers[it.cls]=val.trim(); else delete cfg.teachers[it.cls];
+      edt=null; await saveCfg(); render(); toast('담임 저장'); return;
     }
     if(t==='book'){
       const d2=(document.querySelector('#ev2')||{}).value||sel;
@@ -1282,9 +1309,14 @@ function wire(){
   });
   document.querySelectorAll('[data-rosadd]').forEach(b=>b.onclick=async()=>{
     const c=b.dataset.rosadd, el=document.querySelector('#rosin');
+    const tel=document.querySelector('#rostch');
+    if(tel){
+      cfg.teachers=cfg.teachers||{};
+      if(tel.value.trim())cfg.teachers[c]=tel.value.trim(); else delete cfg.teachers[c];
+    }
     const raw=(el?el.value:'')||'';
     const add=raw.split(/[,·\/\n]/).map(x=>x.trim()).filter(Boolean);
-    if(!add.length){toast('이름을 넣어주세요');return}
+    if(!add.length){ await saveCfg(); render(); toast('저장했어요'); return }
     cfg.roster=cfg.roster||{};
     const cur=(roster(c)||[]).slice();
     add.forEach(nm=>{ if(cur.indexOf(nm)<0)cur.push(nm) });
