@@ -449,7 +449,8 @@ function resolve(it,date){
     if(it.skip&&it.skip.indexOf(date)>=0)return null;
     if(it.hide&&it.hide.indexOf(date)>=0)return null;
   }
-  const o={it,kind:it.kind,cls:it.cls,n:it.n||0,sure:it.sure!==false,note:it.note||'',label:it.label||'',book:it.book||'',src:it.src||''};
+  const rn=roster(it.cls).length;
+  const o={it,kind:it.kind,cls:it.cls,n:(it.kind==='retest'? (it.n||0) : (rn||it.n||0)),sure:it.sure!==false,note:it.note||'',label:it.label||'',book:it.book||'',src:it.src||''};
   if(it.base!=null&&it.anchor){
     const skipped=(it.skip||[]).filter(x=>x>it.anchor&&x<date).length;
     o.num=it.base+it.step*(weeksBetween(it.anchor,date)-skipped);
@@ -826,7 +827,7 @@ function addForm(){
   const cls = afCls==='__new' ? afNew.trim().toUpperCase() : afCls;
   const names = afKind==='retest' ? roster(cls) : [];
   const picked = Object.keys(afSel).filter(k=>afSel[k]);
-  const auto = afKind==='retest' ? (picked.length||1) : (N[cls]||0);
+  const auto = afKind==='retest' ? (picked.length||1) : (roster(cls).length||N[cls]||0);
   let h='<div class="item" style="margin-bottom:14px">'
    +'<div class="line1"><b>시험 추가</b></div><div class="fields">'
    +'<div><label>날짜</label><input type="date" id="ad" value="'+esc(afDate)+'"></div>'
@@ -911,7 +912,9 @@ function itemFields(it){
      +'<option value="__new">새 반 직접 넣기…</option></select>'
      +(allClasses().indexOf(it.cls)<0?'<input data-k="cls" data-id="'+it.id+'" value="'+esc(it.cls)+'" style="margin-top:4px" placeholder="반 이름">':'')
      +'</div>'
-   +f('n','인원','number')
+   +(roster(it.cls).length
+      ? '<div><label>인원</label><input value="'+roster(it.cls).length+'명 (명단에서 자동)" disabled style="color:var(--ink-soft)"></div>'
+      : f('n','인원','number'))
    +'<div><label>종류</label><select data-k="choice" data-id="'+it.id+'">'
      +CHOICES.map(c=>'<option value="'+c.v+'"'+(vOf(it)===c.v?' selected':'')+'>'+c.t+'</option>').join('')
      +'</select></div>'
@@ -951,8 +954,6 @@ function rosterSection(){
   if(!rosSecOpen)return h+'</div>';
   allClasses().filter(c=>c.indexOf('&')<0).forEach(c=>{
     const list=roster(c), on=rosOpen===c;
-    const ns=cfg.items.filter(i=>i.cls===c&&!i.off&&!(i.noprint||i.kind==='fixed')).map(i=>i.n||0);
-    const mismatch=list.length&&ns.length&&ns.some(n=>n!==list.length);
     h+='<div class="srow'+(on?' open':'')+'">'
      +'<div class="sline" data-ros="'+esc(c)+'"><b>'+esc(c)+'</b>'
      +'<span>'+(teacherOf(c)?'<b style="font-weight:600">'+esc(teacherOf(c))+'</b> · ':'')
@@ -971,7 +972,6 @@ function rosterSection(){
        +'<input id="rosin" placeholder="예: 김민준, 이서연"></div></div>'
        +'<div class="toolbar" style="margin:8px 0 0">'
        +'<button class="btn" data-rosadd="'+esc(c)+'">저장</button>'
-       +(mismatch?'<button class="btn ghost" data-rosfix="'+esc(c)+'">시험지 장수도 '+list.length+'명으로</button>':'')
        +'<button class="btn ghost" data-rosno="1">닫기</button></div></div>';
     }
     h+='</div>';
@@ -987,7 +987,8 @@ function viewSet(){
   h+=rosterSection();
   for(let w=1;w<=5;w++){
     const list=act.filter(i=>!i.once&&i.wd===w).sort((a,b)=>cidx(a.cls)-cidx(b.cls)||a.cls.localeCompare(b.cls));
-    const sheets=list.filter(i=>!i.off&&!(i.noprint||i.kind==='fixed')).reduce((a,i)=>a+(i.n||0),0);
+    const sheets=list.filter(i=>!i.off&&!(i.noprint||i.kind==='fixed'))
+      .reduce((a,i)=>a+(i.kind==='retest'?(i.n||0):(roster(i.cls).length||i.n||0)),0);
     const op=!!dayOpen[w];
     h+='<div class="grp"><h3 data-sec="d'+w+'" style="cursor:pointer">'+(op?'▾':'▸')+' '+DAYK[w]+'요일 '
       +'<span style="font-weight:500;color:var(--ink-soft)">'+list.length+'개 · '+sheets+'장</span>'
@@ -1231,7 +1232,7 @@ function wire(){
     if(!afDate){toast('날짜를 골라주세요');return}
     const picked=Object.keys(afSel).filter(k=>afSel[k]);
     const nv=parseInt(afN,10);
-    const n=isNaN(nv)?(afKind==='retest'?(picked.length||1):(N[c]||0)):nv;
+    const n=isNaN(nv)?(afKind==='retest'?(picked.length||1):(roster(c).length||N[c]||0)):nv;
     const ch=choice(afKind);
     const it={id:'u'+Date.now(),cls:c,kind:ch.kind,n,sure:true,off:false};
     if(afKind!=='retest'&&afRep==='week'){ it.wd=parse(afDate).getDay(); it.from=afDate }
@@ -1263,8 +1264,7 @@ function wire(){
       if(el.value==='__new'){ it.cls='새 반'; it.n=0 }
       else{
         it.cls=el.value;
-        const rn=roster(it.cls).length;
-        it.n = rn || N[it.cls] || it.n || 0;
+        it.n = roster(it.cls).length || N[it.cls] || 0;
       }
       await saveCfg(); render(); return;
     }
@@ -1322,11 +1322,6 @@ function wire(){
     add.forEach(nm=>{ if(cur.indexOf(nm)<0)cur.push(nm) });
     cfg.roster[c]=cur;
     await saveCfg(); render(); toast(add.length+'명 넣었어요');
-  });
-  document.querySelectorAll('[data-rosfix]').forEach(b=>b.onclick=async()=>{
-    const c=b.dataset.rosfix, n=roster(c).length;
-    cfg.items.forEach(i=>{ if(i.cls===c&&!(i.noprint||i.kind==='fixed'))i.n=n });
-    await saveCfg(); render(); toast('장수를 '+n+'명으로 맞췄어요');
   });
   document.querySelectorAll('[data-edit]').forEach(el=>el.onclick=()=>{
     const id=el.dataset.edit; editing={}; editing[id]=!editing[id]; render();
