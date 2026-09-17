@@ -199,10 +199,10 @@ const N={TWC:5,TPG:9,TPA:3,THA:6,TPP:10,TPV:7,TPD:7,TPC:10,THI:10,TPN:7,
   TPH:10,TPT:9,TPW:10,TMA:3,TPQ:11,TPX:5,TPO:5,
   TMX:9,TMP:8,TMG:8,TMB:7,TPF:4,TP1:5,TM1:8};
 
-const SEEDV=7;
+const SEEDV=8;
 
 /* 반별 명단 — 시간표에서 읽음. 틀린 이름은 아래 ROSTER에서 고치면 됩니다. */
-const ROSTER={
+const ROSTER0={
  TWC:['이준혁','조하준','최별','최유은','최유하'],
  TPG:['김루아','김하엘','류수현','박서아','배서연','위민서','조수현','조우진','조재현'],
  TPA:['문은설','이세은','최아현'],
@@ -231,9 +231,10 @@ const ROSTER={
  TM1:['김예지','김지우','박윤호','박채은','백서연','이승민','정나은','최은지']
 };
 function roster(cls){
-  if(ROSTER[cls])return ROSTER[cls];
+  const R=(cfg&&cfg.roster)||ROSTER0;
+  if(R[cls])return R[cls];
   let out=[];
-  cls.split('&').map(x=>x.trim()).forEach(p=>{ if(ROSTER[p]) out=out.concat(ROSTER[p]) });
+  cls.split('&').map(x=>x.trim()).forEach(p=>{ if(R[p]) out=out.concat(R[p]) });
   return out;
 }
 
@@ -250,7 +251,8 @@ function seed(){
   B('TPO','워드마스터 중등 베이직'); B('TMG','워드마스터 중등 실력');
   B('TMA','워드마스터 수능 2000'); B('TPF','워드마스터 수능 2000');
   B('TPQ','새 교재 (추후 기입)');
-  return {v:SEEDV, books, items:[
+  const roster=JSON.parse(JSON.stringify(ROSTER0));
+  return {v:SEEDV, books, roster, items:[
 
   /* ── 매주 월요일 ── */
   A({cls:'TPV',kind:'vocab',wd:1}),
@@ -318,6 +320,7 @@ function seed(){
 const RULES={};
 
 let cfg=seed(), logs={}, sel=null, tab='day', memory=false, open={}, addOpen=false, editing={};
+let rosOpen=null;
 let rtOpen=null, rtSel={}, rtDate='', rtWhat='', rtRound=1, rtKind='vocab', rtAll=false;
 let afCls='', afNew='', afKind='retest', afDate='', afN='', afWhat='', afNote='', afPrint='', afSel={}, afRound=1, afRKind='vocab', afRep='one';
 
@@ -923,6 +926,31 @@ function viewSet(){
     h+=ones.map(it=>'<div class="daytag">'+it.once.slice(5).replace('-','/')+'</div>'+setRow(it)).join('');
     h+='</div>';
   }
+  h+='<div class="grp"><h3>반별 명단 <span style="font-weight:500;color:var(--ink-soft)">재시험 고를 때 쓰여요</span></h3>';
+  allClasses().filter(c=>c.indexOf('&')<0).forEach(c=>{
+    const list=roster(c), on=rosOpen===c;
+    const ns=cfg.items.filter(i=>i.cls===c&&!i.off&&!(i.noprint||i.kind==='fixed')).map(i=>i.n||0);
+    const mismatch=list.length&&ns.length&&ns.some(n=>n!==list.length);
+    h+='<div class="srow'+(on?' open':'')+'">'
+     +'<div class="sline" data-ros="'+esc(c)+'"><b>'+esc(c)+'</b>'
+     +'<span>'+(list.length?esc(list.join(', ')):'명단 없음')+'</span>'
+     +'<em>'+list.length+'명</em><i>'+(on?'▲':'수정')+'</i></div>';
+    if(on){
+      h+='<div style="padding:0 10px 10px">'
+       +'<div class="names">'+list.map(nm=>
+         '<button class="nm'+(armed==='n'+c+nm?' on':'')+'" data-rosdel="'+esc(c)+'|'+esc(nm)+'">'
+         +esc(nm)+(armed==='n'+c+nm?' 지울까요?':' ✕')+'</button>').join('')
+       +(list.length?'':'<span style="font-size:12px;color:var(--ink-soft)">아직 없어요</span>')+'</div>'
+       +'<div class="fields" style="margin-top:8px"><div style="grid-column:1/-1">'
+       +'<label>이름 추가 (쉼표로 여러 명)</label><input id="rosin" placeholder="예: 김민준, 이서연"></div></div>'
+       +'<div class="toolbar" style="margin:8px 0 0">'
+       +'<button class="btn" data-rosadd="'+esc(c)+'">추가</button>'
+       +(mismatch?'<button class="btn ghost" data-rosfix="'+esc(c)+'">시험지 장수도 '+list.length+'명으로</button>':'')
+       +'<button class="btn ghost" data-rosno="1">닫기</button></div></div>';
+    }
+    h+='</div>';
+  });
+  h+='</div>';
   return h;
 }
 function resolve0(it){return {it,kind:it.kind,book:it.book||''}}
@@ -1194,6 +1222,35 @@ function wire(){
     const c=b.dataset.addto;
     cfg.items.push({id:'u'+Date.now(),cls:c,kind:'vocab',wd:1,n:N[c]||0,sure:true,off:false});
     await saveCfg(); render();
+  });
+  document.querySelectorAll('[data-ros]').forEach(el=>el.onclick=()=>{
+    rosOpen=(rosOpen===el.dataset.ros)?null:el.dataset.ros; armed=null; render();
+  });
+  const rosno=document.querySelector('[data-rosno]');
+  if(rosno)rosno.onclick=()=>{rosOpen=null;render()};
+  document.querySelectorAll('[data-rosdel]').forEach(b=>b.onclick=async()=>{
+    const [c,nm]=b.dataset.rosdel.split('|');
+    if(armed!=='n'+c+nm){ armed='n'+c+nm; render(); return }
+    armed=null;
+    cfg.roster=cfg.roster||{};
+    cfg.roster[c]=(roster(c)||[]).filter(x=>x!==nm);
+    await saveCfg(); render();
+  });
+  document.querySelectorAll('[data-rosadd]').forEach(b=>b.onclick=async()=>{
+    const c=b.dataset.rosadd, el=document.querySelector('#rosin');
+    const raw=(el?el.value:'')||'';
+    const add=raw.split(/[,·\/\n]/).map(x=>x.trim()).filter(Boolean);
+    if(!add.length){toast('이름을 넣어주세요');return}
+    cfg.roster=cfg.roster||{};
+    const cur=(roster(c)||[]).slice();
+    add.forEach(nm=>{ if(cur.indexOf(nm)<0)cur.push(nm) });
+    cfg.roster[c]=cur;
+    await saveCfg(); render(); toast(add.length+'명 넣었어요');
+  });
+  document.querySelectorAll('[data-rosfix]').forEach(b=>b.onclick=async()=>{
+    const c=b.dataset.rosfix, n=roster(c).length;
+    cfg.items.forEach(i=>{ if(i.cls===c&&!(i.noprint||i.kind==='fixed'))i.n=n });
+    await saveCfg(); render(); toast('장수를 '+n+'명으로 맞췄어요');
   });
   document.querySelectorAll('[data-edit]').forEach(el=>el.onclick=()=>{
     const id=el.dataset.edit; editing={}; editing[id]=!editing[id]; render();
