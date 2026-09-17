@@ -199,7 +199,7 @@ const N={TWC:5,TPG:9,TPA:3,THA:6,TPP:10,TPV:7,TPD:7,TPC:10,THI:10,TPN:7,
   TPH:10,TPT:9,TPW:10,TMA:3,TPQ:11,TPX:5,TPO:5,
   TMX:9,TMP:8,TMG:8,TMB:7,TPF:4,TP1:5,TM1:8};
 
-const SEEDV=8;
+const SEEDV=10;
 
 /* 반별 명단 — 시간표에서 읽음. 틀린 이름은 아래 ROSTER에서 고치면 됩니다. */
 const ROSTER0={
@@ -263,7 +263,6 @@ function seed(){
 
   /* ── 매주 화요일 ── */
   A({cls:'TPE & TPE-1',kind:'blank',wd:2,note:'화·목엔 TPE-1과 같이'}),
-  A({cls:'TPX',kind:'book',wd:2,book:'뜯중 1800',base:1,anchor:'2026-09-08',step:1,fmt:'뜻·영단어 섞어서'}),
   A({cls:'TPO',kind:'book',wd:2,book:'워드마스터 중등 베이직',base:1,anchor:'2026-09-08',step:1,fmt:'뜻·영단어 섞어서'}),
   A({cls:'TPN',kind:'book',wd:2,book:'뜯중 1800',base:14,anchor:'2026-09-08',step:1,fmt:'뜻·영단어 섞어서'}),
   A({cls:'TPQ',kind:'book',wd:2,book:'새 교재 (추후 기입)',base:1,anchor:'2026-09-15',step:1,from:'2026-09-15',fmt:'뜻·영단어 섞어서',sure:false}),
@@ -302,6 +301,7 @@ function seed(){
   ...selfBook('TMP','뜯중 1800',1,3,null,null,true),
   ...selfBook('TMG','워드마스터 중등 실력',1,3,null,null,true),
   ...selfBook('TMB','뜯중 1200',1,3,null,null,true),
+  ...selfBook('TPX','뜯중 1800',2,4,null,null,true),
   ...selfBook('TPF','워드마스터 수능 2000',2,4,null,null,true),
   ...selfBook('TM1','뜯중 1800',2,4,null,null,true),
   A({cls:'TP1',kind:'book',wd:2,book:'뜯중 1800',base:1,anchor:'2026-09-08',step:1,fmt:'영단어만 쓰기',noprint:true,from:'2026-09-15',sure:false})
@@ -464,23 +464,26 @@ const CHOICES=[
 ];
 const choice=v=>CHOICES.find(c=>c.v===v)||CHOICES[0];
 /* 자체교재 반이 쓰는 교재 — 반을 고르면 자동으로 붙습니다 */
-function applyChoice(it,v,date,text){
+function applyChoice(it,v,date,text,keep){
+  const old={base:it.base,anchor:it.anchor,step:it.step,ul:it.ul,src:it.src,label:it.label,fmt:it.fmt};
   const c=choice(v);
   ['book','fmt','label','src','noprint','base','anchor','step','ul','names','round','rk']
     .forEach(k=>{ delete it[k] });
   if(v==='retest'){ it.kind='retest'; it.round=1; it.rk='vocab'; it.names=[]; it.src=text||'' ; return }
-  if(v==='vocab'){ it.kind='vocab'; if(text)it.src=text; return }
-  if(v==='blank'){ it.kind='blank'; if(text)it.src=text; return }
-  if(v==='each'){ it.kind='each'; it.src=text||bookOf(it.cls,date)||''; return }
-  if(v==='free'){ it.kind='set'; it.label=text||'시험'; return }
+  if(v==='vocab'){ it.kind='vocab'; if(text)it.src=text; else if(keep&&old.src)it.src=old.src; return }
+  if(v==='blank'){ it.kind='blank'; if(text)it.src=text; else if(keep&&old.src)it.src=old.src; return }
+  if(v==='each'){ it.kind='each'; it.src=text||(keep&&old.src)||bookOf(it.cls,date)||''; return }
+  if(v==='free'){ it.kind='set'; it.label=text||(keep&&old.label)||'시험'; return }
   if(v==='self'){
     it.kind='book'; it.noprint=true; it.book=bookOf(it.cls,date)||'자체교재';
     it.base=parseInt((text||'').replace(/\D/g,''),10)||1; it.anchor=date; it.step=1; it.ul='Day';
+    if(keep&&old.base!=null){ it.base=old.base; it.anchor=old.anchor||date; it.step=old.step||1; if(old.ul)it.ul=old.ul; if(old.fmt)it.fmt=old.fmt }
     return;
   }
   it.kind='book'; it.book=c.book||'교재';
   it.base=parseInt((text||'').replace(/\D/g,''),10)||1; it.anchor=date; it.step=1;
   it.ul = v==='rd' ? '과' : 'Day';
+  if(keep&&old.base!=null){ it.base=old.base; it.anchor=old.anchor||date; it.step=old.step||1; if(old.ul)it.ul=old.ul; if(old.fmt)it.fmt=old.fmt }
 }
 const bookFor=(v,cls)=>{
   const c=CHOICES.find(x=>x.v===v);
@@ -873,8 +876,8 @@ function itemFields(it){
   const numbered=it.kind==='book'||it.base!=null;
   return '<div class="fields">'
    +f('cls','반','text')+f('n','인원','number')
-   +'<div><label>종류</label><select data-k="kind" data-id="'+it.id+'">'
-     +Object.keys(KIND).map(k=>'<option value="'+k+'"'+(it.kind===k?' selected':'')+'>'+KIND[k].label+'</option>').join('')
+   +'<div><label>종류</label><select data-k="choice" data-id="'+it.id+'">'
+     +CHOICES.map(c=>'<option value="'+c.v+'"'+(vOf(it)===c.v?' selected':'')+'>'+c.t+'</option>').join('')
      +'</select></div>'
    +'<div><label>언제</label><select data-k="rep" data-id="'+it.id+'">'
      +'<option value="week"'+(it.once?'':' selected')+'>매주</option>'
@@ -885,11 +888,10 @@ function itemFields(it){
    +((it.kind==='vocab'||it.kind==='each'||it.kind==='blank')?f('src','어디서 나오는지','text'):'')
    +(it.kind==='set'?f('label','내용','text'):'')
    +(it.kind==='manual'?f('book','교재','text'):'')
-   +(numbered? (it.kind==='book'?f('book','교재','text'):'')+f('ul','번호 이름','text')
-       +f('anchor','기준일','date')+f('base','그날 번호','number')
-       +'<div><label>주마다</label><select data-k="step" data-id="'+it.id+'"><option value="1"'+(it.step===1?' selected':'')+'>+1</option><option value="-1"'+(it.step===-1?' selected':'')+'>-1</option></select></div>'
+   +(numbered? (it.kind==='book'?f('book','교재','text'):'')+'<div><label>번호 앞에 붙는 말</label><input data-k="ul" data-id="'+it.id+'" value="'+esc(it.ul==null?'':it.ul)+'" placeholder="Day"></div>'
+       +f('anchor','이 날 기준','date')+f('base','그 날의 번호','number')
+       +'<div><label>주마다</label><select data-k="step" data-id="'+it.id+'"><option value="1"'+(it.step===1?' selected':'')+'>+1 (올라감)</option><option value="-1"'+(it.step===-1?' selected':'')+'>-1 (내려감)</option></select></div>'
        +f('fmt','쓰는 방식','text') : '')
-   +'<div><label>시험지</label><select data-k="noprint" data-id="'+it.id+'"><option value="">내가 뽑음</option><option value="1"'+(it.noprint?' selected':'')+'>자체교재 (안 뽑음)</option></select></div>'
    +(it.once?'':f('from','이 날부터','date'))
    +f('note','메모','text')
    +'</div><div class="toolbar">'
@@ -907,26 +909,8 @@ function setRow(it){
    +'<i>'+(on?'▲':'수정')+'</i></div>'
    +(on?itemFields(it):'')+'</div>';
 }
-function viewSet(){
-  const act=cfg.items;
-  let h='<div class="note">'+(WORKER?'이 설정은 <b>링크를 가진 선생님 모두가 같이 보고 고칩니다.</b> (v'+SEEDV+' · rev '+rev+')':'지금은 <b>내 브라우저에만</b> 저장돼요. 파일 맨 위 WORKER 주소를 채우면 다 같이 쓰게 됩니다.')+' 한 줄을 누르면 그 시험만 펼쳐서 고칠 수 있어요. <b class="warn">확인</b>은 제가 확신 못 한 부분, <b class="warn">안 봄</b>은 시험을 안 보는 반(회색)이에요.</div>'
-   +'<div class="toolbar"><button class="btn ghost" data-export="1">백업 복사</button>'
-   +'<button class="btn danger" data-reset="1">'+(armed==='reset'?'정말 되돌릴까요?':'처음 상태로')+'</button></div>';
-  for(let w=1;w<=5;w++){
-    const list=act.filter(i=>!i.once&&i.wd===w).sort((a,b)=>cidx(a.cls)-cidx(b.cls)||a.cls.localeCompare(b.cls));
-    const sheets=list.filter(i=>!i.off&&!(i.noprint||i.kind==='fixed')).reduce((a,i)=>a+(i.n||0),0);
-    h+='<div class="grp"><h3>'+DAYK[w]+'요일 <span style="font-weight:500;color:var(--ink-soft)">'+list.length+'개 · '+sheets+'장</span>'
-      +'<button class="mini" style="float:right" data-addday="'+w+'">추가</button></h3>';
-    h+= list.length? list.map(setRow).join('') : '<div class="empty">시험 없음</div>';
-    h+='</div>';
-  }
-  const ones=act.filter(i=>i.once).sort((a,b)=>a.once.localeCompare(b.once)||cidx(a.cls)-cidx(b.cls));
-  if(ones.length){
-    h+='<div class="grp"><h3>그 날만 <span style="font-weight:500;color:var(--ink-soft)">'+ones.length+'개</span></h3>';
-    h+=ones.map(it=>'<div class="daytag">'+it.once.slice(5).replace('-','/')+'</div>'+setRow(it)).join('');
-    h+='</div>';
-  }
-  h+='<div class="grp"><h3>반별 명단 <span style="font-weight:500;color:var(--ink-soft)">재시험 고를 때 쓰여요</span></h3>';
+function rosterSection(){
+  let h='<div class="grp"><h3>반별 명단 <span style="font-weight:500;color:var(--ink-soft)">이름 지우기 · 넣기</span></h3>';
   allClasses().filter(c=>c.indexOf('&')<0).forEach(c=>{
     const list=roster(c), on=rosOpen===c;
     const ns=cfg.items.filter(i=>i.cls===c&&!i.off&&!(i.noprint||i.kind==='fixed')).map(i=>i.n||0);
@@ -948,9 +932,24 @@ function viewSet(){
        +(mismatch?'<button class="btn ghost" data-rosfix="'+esc(c)+'">시험지 장수도 '+list.length+'명으로</button>':'')
        +'<button class="btn ghost" data-rosno="1">닫기</button></div></div>';
     }
+    });
+  return h+'</div>';
+}
+
+function viewSet(){
+  const act=cfg.items;
+  let h='<div class="note">'+(WORKER?'이 설정은 <b>링크를 가진 선생님 모두가 같이 보고 고칩니다.</b> (v'+SEEDV+' · rev '+rev+')':'지금은 <b>내 브라우저에만</b> 저장돼요. 파일 맨 위 WORKER 주소를 채우면 다 같이 쓰게 됩니다.')+' 한 줄을 누르면 그 시험만 펼쳐서 고칠 수 있어요. <b class="warn">확인</b>은 제가 확신 못 한 부분, <b class="warn">안 봄</b>은 시험을 안 보는 반(회색)이에요.</div>'
+   +'<div class="toolbar"><button class="btn ghost" data-export="1">백업 복사</button>'
+   +'<button class="btn danger" data-reset="1">'+(armed==='reset'?'정말 되돌릴까요?':'처음 상태로')+'</button></div>';
+  h+=rosterSection();
+  for(let w=1;w<=5;w++){
+    const list=act.filter(i=>!i.once&&i.wd===w).sort((a,b)=>cidx(a.cls)-cidx(b.cls)||a.cls.localeCompare(b.cls));
+    const sheets=list.filter(i=>!i.off&&!(i.noprint||i.kind==='fixed')).reduce((a,i)=>a+(i.n||0),0);
+    h+='<div class="grp"><h3>'+DAYK[w]+'요일 <span style="font-weight:500;color:var(--ink-soft)">'+list.length+'개 · '+sheets+'장</span>'
+      +'<button class="mini" style="float:right" data-addday="'+w+'">추가</button></h3>';
+    h+= list.length? list.map(setRow).join('') : '<div class="empty">시험 없음</div>';
     h+='</div>';
-  });
-  h+='</div>';
+  }
   return h;
 }
 function resolve0(it){return {it,kind:it.kind,book:it.book||''}}
@@ -1198,6 +1197,10 @@ function wire(){
   };
   document.querySelectorAll('[data-k]').forEach(el=>el.onchange=async()=>{
     const it=cfg.items.find(x=>x.id===el.dataset.id), k=el.dataset.k;
+    if(k==='choice'){
+      applyChoice(it, el.value, it.anchor||sel, '', true);
+      it.sure=true; await saveCfg(); render(); return;
+    }
     if(k==='rep'){
       if(el.value==='one'&&!it.once){ it.once=sel; delete it.wd; delete it.from }
       else if(el.value==='week'&&it.once){ it.wd=parse(it.once).getDay(); it.from=it.once; delete it.once }
