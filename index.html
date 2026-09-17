@@ -238,6 +238,15 @@ function roster(cls){
   return out;
 }
 
+function merge(old){
+  const fresh=seed();
+  // 직접 추가하거나 옮긴 것(id 앞글자 u/m/k/r)은 그대로 살림
+  const mine=(old.items||[]).filter(i=>/^[umkr]/.test(i.id||''));
+  fresh.items=fresh.items.concat(mine);
+  fresh.books=Object.assign({}, fresh.books, old.books||{});
+  fresh.roster=Object.assign({}, fresh.roster, old.roster||{});
+  return fresh;
+}
 function seed(){
   let k=0;
   const A=o=>Object.assign({id:'s'+(++k),sure:true,off:false,n:N[o.cls]},o);
@@ -320,7 +329,7 @@ function seed(){
 const RULES={};
 
 let cfg=seed(), logs={}, sel=null, tab='day', memory=false, open={}, addOpen=false, editing={};
-let rosOpen=null;
+let rosOpen=null, dayOpen={}, rosSecOpen=false;
 let rtOpen=null, rtSel={}, rtDate='', rtWhat='', rtRound=1, rtKind='vocab', rtAll=false;
 let afCls='', afNew='', afKind='retest', afDate='', afN='', afWhat='', afNote='', afPrint='', afSel={}, afRound=1, afRKind='vocab', afRep='one', afBook=null;
 
@@ -401,7 +410,8 @@ async function load(){
     const st = await pullAll();
     if(st.logs) logs = st.logs;
     if(st.cfg && st.cfg.v===SEEDV) cfg = st.cfg;
-    else { cfg = seed(); await pushAll(); }   // 시간표가 새로 정리되면 갈아끼움
+    else if(st.cfg){ cfg = merge(st.cfg); await pushAll(); }  // 시간표만 새로, 직접 넣은 건 그대로
+    else { cfg = seed(); await pushAll(); }
   }catch(e){
     memory = true;
     toast('저장소에 연결 못 했어요 — 이 화면에서만 유지됩니다');
@@ -877,7 +887,13 @@ function itemFields(it){
   const f=(k,l,t)=>'<div><label>'+l+'</label><input type="'+t+'" data-k="'+k+'" data-id="'+it.id+'" value="'+esc(it[k]==null?'':it[k])+'"></div>';
   const numbered=it.kind==='book'||it.base!=null;
   return '<div class="fields">'
-   +f('cls','반','text')+f('n','인원','number')
+   +'<div><label>반</label><select data-k="cls" data-id="'+it.id+'">'
+     +(allClasses().indexOf(it.cls)<0?'<option value="'+esc(it.cls)+'" selected>'+esc(it.cls)+'</option>':'')
+     +allClasses().map(c=>'<option value="'+esc(c)+'"'+(it.cls===c?' selected':'')+'>'+esc(c)+'</option>').join('')
+     +'<option value="__new">새 반 직접 넣기…</option></select>'
+     +(allClasses().indexOf(it.cls)<0?'<input data-k="cls" data-id="'+it.id+'" value="'+esc(it.cls)+'" style="margin-top:4px" placeholder="반 이름">':'')
+     +'</div>'
+   +f('n','인원','number')
    +'<div><label>종류</label><select data-k="choice" data-id="'+it.id+'">'
      +CHOICES.map(c=>'<option value="'+c.v+'"'+(vOf(it)===c.v?' selected':'')+'>'+c.t+'</option>').join('')
      +'</select></div>'
@@ -912,7 +928,9 @@ function setRow(it){
    +(on?itemFields(it):'')+'</div>';
 }
 function rosterSection(){
-  let h='<div class="grp"><h3>반별 명단 <span style="font-weight:500;color:var(--ink-soft)">이름 지우기 · 넣기</span></h3>';
+  let h='<div class="grp"><h3 data-sec="ros" style="cursor:pointer">'+(rosSecOpen?'▾':'▸')+' 반별 명단 '
+    +'<span style="font-weight:500;color:var(--ink-soft)">이름 지우기 · 넣기</span></h3>';
+  if(!rosSecOpen)return h+'</div>';
   allClasses().filter(c=>c.indexOf('&')<0).forEach(c=>{
     const list=roster(c), on=rosOpen===c;
     const ns=cfg.items.filter(i=>i.cls===c&&!i.off&&!(i.noprint||i.kind==='fixed')).map(i=>i.n||0);
@@ -934,7 +952,8 @@ function rosterSection(){
        +(mismatch?'<button class="btn ghost" data-rosfix="'+esc(c)+'">시험지 장수도 '+list.length+'명으로</button>':'')
        +'<button class="btn ghost" data-rosno="1">닫기</button></div></div>';
     }
-    });
+    h+='</div>';
+  });
   return h+'</div>';
 }
 
@@ -947,9 +966,11 @@ function viewSet(){
   for(let w=1;w<=5;w++){
     const list=act.filter(i=>!i.once&&i.wd===w).sort((a,b)=>cidx(a.cls)-cidx(b.cls)||a.cls.localeCompare(b.cls));
     const sheets=list.filter(i=>!i.off&&!(i.noprint||i.kind==='fixed')).reduce((a,i)=>a+(i.n||0),0);
-    h+='<div class="grp"><h3>'+DAYK[w]+'요일 <span style="font-weight:500;color:var(--ink-soft)">'+list.length+'개 · '+sheets+'장</span>'
-      +'<button class="mini" style="float:right" data-addday="'+w+'">추가</button></h3>';
-    h+= list.length? list.map(setRow).join('') : '<div class="empty">시험 없음</div>';
+    const op=!!dayOpen[w];
+    h+='<div class="grp"><h3 data-sec="d'+w+'" style="cursor:pointer">'+(op?'▾':'▸')+' '+DAYK[w]+'요일 '
+      +'<span style="font-weight:500;color:var(--ink-soft)">'+list.length+'개 · '+sheets+'장</span>'
+      +(op?'<button class="mini" style="float:right" data-addday="'+w+'">추가</button>':'')+'</h3>';
+    if(op)h+= list.length? list.map(setRow).join('') : '<div class="empty">시험 없음</div>';
     h+='</div>';
   }
   return h;
@@ -1211,6 +1232,15 @@ function wire(){
       else if(el.value==='week'&&it.once){ it.wd=parse(it.once).getDay(); it.from=it.once; delete it.once }
       await saveCfg(); render(); return;
     }
+    if(k==='cls'){
+      if(el.value==='__new'){ it.cls='새 반'; it.n=0 }
+      else{
+        it.cls=el.value;
+        const rn=roster(it.cls).length;
+        it.n = rn || N[it.cls] || it.n || 0;
+      }
+      await saveCfg(); render(); return;
+    }
     it[k]=(k==='wd'||k==='step'||k==='base'||k==='n')?parseInt(el.value,10):(k==='noprint'?(el.value?true:false):el.value);
     if(k!=='cls'&&k!=='n')it.sure=true;
     await saveCfg(); render();
@@ -1230,6 +1260,12 @@ function wire(){
     const c=b.dataset.addto;
     cfg.items.push({id:'u'+Date.now(),cls:c,kind:'vocab',wd:1,n:N[c]||0,sure:true,off:false});
     await saveCfg(); render();
+  });
+  document.querySelectorAll('[data-sec]').forEach(el=>el.onclick=()=>{
+    const k=el.dataset.sec;
+    if(k==='ros')rosSecOpen=!rosSecOpen;
+    else { const w=+k.slice(1); dayOpen[w]=!dayOpen[w] }
+    editing={}; rosOpen=null; armed=null; render();
   });
   document.querySelectorAll('[data-ros]').forEach(el=>el.onclick=()=>{
     rosOpen=(rosOpen===el.dataset.ros)?null:el.dataset.ros; armed=null; render();
@@ -1266,13 +1302,15 @@ function wire(){
   document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>{editing={};render()});
   document.querySelectorAll('[data-addday]').forEach(b=>b.onclick=async()=>{
     const id='u'+Date.now();
-    cfg.items.push({id,cls:'새 반',kind:'vocab',wd:+b.dataset.addday,n:0,sure:true,off:false});
+    const c0=allClasses()[0]||'새 반';
+    cfg.items.push({id,cls:c0,kind:'vocab',wd:+b.dataset.addday,n:roster(c0).length||N[c0]||0,sure:true,off:false});
     editing={}; editing[id]=true; await saveCfg(); render();
   });
   const add=document.querySelector('[data-add]');
   if(add)add.onclick=async()=>{
     const id='u'+Date.now();
-    cfg.items.push({id,cls:'새 반',kind:'vocab',wd:1,n:0,sure:true,off:false});
+    const c1=allClasses()[0]||'새 반';
+    cfg.items.push({id,cls:c1,kind:'vocab',wd:1,n:roster(c1).length||N[c1]||0,sure:true,off:false});
     editing={}; editing[id]=true; await saveCfg(); render();
   };
   const ex=document.querySelector('[data-export]');
