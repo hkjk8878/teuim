@@ -322,7 +322,7 @@ const RULES={};
 let cfg=seed(), logs={}, sel=null, tab='day', memory=false, open={}, addOpen=false, editing={};
 let rosOpen=null;
 let rtOpen=null, rtSel={}, rtDate='', rtWhat='', rtRound=1, rtKind='vocab', rtAll=false;
-let afCls='', afNew='', afKind='retest', afDate='', afN='', afWhat='', afNote='', afPrint='', afSel={}, afRound=1, afRKind='vocab', afRep='one';
+let afCls='', afNew='', afKind='retest', afDate='', afN='', afWhat='', afNote='', afPrint='', afSel={}, afRound=1, afRKind='vocab', afRep='one', afBook=null;
 
 const pad=n=>String(n).padStart(2,'0');
 const ymd=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
@@ -825,6 +825,8 @@ function addForm(){
        +'<option value="week"'+(afRep==='week'?' selected':'')+'>매주 '+DAYK[parse(afDate||sel).getDay()]+'요일마다</option>'
        +'</select></div>')
    +'<div><label>비고</label><input id="ao" value="'+esc(afNote)+'" placeholder="메모"></div>'
+   +'<div style="grid-column:1/-1"><label>'+esc(cls||'이 반')+' 교재 <span style="color:var(--ink-soft)">(반 이름 옆에 뜨는 것)</span></label>'
+     +'<input id="abk" value="'+esc(afBook!=null?afBook:bookOf(cls,afDate||sel))+'" placeholder="예: Bricks Reading1"></div>'
    +'<div style="grid-column:1/-1"><label>'+(bookFor(afKind==='retest'?afRKind:afKind, cls)
        ? bookFor(afKind==='retest'?afRKind:afKind, cls)+' — 어디까지' : '범위 / 내용')+'</label><input id="at" value="'+esc(afWhat)+'" placeholder="'+(bookFor(afKind==='retest'?afRKind:afKind, cls)?'예: Day 5':'예: Unit 7 / Day 15')+'"></div>'
    +'</div>';
@@ -1157,15 +1159,16 @@ function wire(){
     const rr=g('#ar'); if(rr!==null)afRound=parseInt(rr,10)||1;
     const rw=g('#arw'); if(rw!==null)afRKind=rw;
     const rp=g('#arp'); if(rp!==null)afRep=rp;
+    const bk=g('#abk'); if(bk!==null)afBook=bk;
   };
   const once=document.querySelector('[data-once]');
   if(once)once.onclick=()=>{
     addOpen=true; afDate=sel; afKind='retest'; afCls=afCls||allClasses()[0];
-    afNew=''; afN=''; afWhat=''; afNote=''; afPrint=''; afSel={}; afRound=1; afRKind='vocab'; afRep='one'; render();
+    afNew=''; afN=''; afWhat=''; afNote=''; afPrint=''; afSel={}; afRound=1; afRKind='vocab'; afRep='one'; afBook=null; render();
   };
   ['#ac','#ak','#ar','#arw','#arp','#ad'].forEach(id=>{
     const el=document.querySelector(id);
-    if(el)el.onchange=()=>{grabAF(); if(id==='#ac')afSel={}; afN=''; render()};
+    if(el)el.onchange=()=>{grabAF(); if(id==='#ac'){afSel={}; afBook=null} afN=''; render()};
   });
   document.querySelectorAll('[data-afn]').forEach(b=>b.onclick=()=>{
     grabAF(); const k=b.dataset.afn; afSel[k]=!afSel[k]; afN=''; render();
@@ -1190,6 +1193,8 @@ function wire(){
     else if(afWhat){ it.src=afWhat; }
     if(afNote)it.note=afNote;
     if(ch.noprint)it.noprint=true;
+    const bk=(afBook!=null?afBook:'').trim();
+    if(bk && bk!==bookOf(c,afDate)) setBook(c, afDate, bk);
     cfg.items.push(it);
     const d=afDate; addOpen=false; await saveCfg();
     if(d!==sel){ await go(d) } else { render() }
