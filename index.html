@@ -580,6 +580,9 @@ function rangeOf(r){
   if(!t&&e.memo)t=e.memo.replace(/\s+/g,' ').slice(0,40);
   return t;
 }
+function rowBook(r){
+  return r.it.ownBook || (r.kind==='book'? (r.book||'') : '') || bookOf(r.cls, sel);
+}
 function tintOf(r){
   if(r.kind==='retest')return 't-retest';
   if(r.kind==='each')return 't-each';
@@ -640,7 +643,7 @@ function rowHTML(r){
   let h='<div class="row '+k+' '+tintOf(r)+(needPrint&&e.pr?' done':'')+'"><div class="top">';
   if(needPrint)
     h+='<button class="tg pr'+(e.pr?' on':'')+'" data-pr="'+id+'">'+(e.pr?'뽑음 ✓':'뽑기')+'</button>';
-  const bk=bookOf(r.cls,sel), tc=teacherOf(r.cls);
+  const bk=rowBook(r), tc=teacherOf(r.cls);
   h+='<div class="code">'+esc(r.cls)
    +'<button class="bk" data-edt="book|'+id+'">('+(bk?esc(bk):'교재 적기')+')</button>'
    +'<button class="bk" data-edt="tch|'+id+'">'+(tc?esc(tc):'담임')+'</button></div>';
@@ -653,9 +656,6 @@ function rowHTML(r){
   if(!r.sure)h+='<div class="meta warn">확인 필요</div>';
   if(r.invalid)h+='<div class="meta warn">Day가 1보다 작아요. 번호를 고쳐주세요.</div>';
 
-  if(isAsk(r)){
-    h+='<input class="val" data-src="'+id+'" value="'+esc(r.it.src||'')+'" placeholder="어디서 나오는지 — 예: Bricks reading 30-1">';
-  }
   if(r.kind==='manual'||r.kind==='each'||r.kind==='blank'){
     const lv=lastVal(id,sel);
     h+='<input class="val" data-val="'+id+'" value="'+esc(e.val||'')+'" placeholder="'+(lv?'지난번('+lv.dt.slice(5)+'): '+esc(lv.val):(r.kind==='each'?'이 날 뽑을 것 직접 쓰기 — 예: Day45 1명(40문제) / Day12·13 2명(80문제)'
@@ -742,11 +742,13 @@ function edtPanel(r){
       +(d==='2000-01-01'?'처음부터':d.replace(/-/g,'.').slice(2))+' · '+esc(h[d])
       +' <button class="notebtn" data-bkdel="'+r.cls+'|'+d+'" style="padding:1px 6px">지움</button></div>').join('');
     return box('<div class="fields" style="margin:0">'
-      +'<div style="grid-column:1/-1"><label>'+esc(r.cls)+' 교재 이름</label>'
-      +'<input id="ev" value="'+esc(edt.v!=null?edt.v:bookOf(r.cls,sel))+'" placeholder="예: 뜯어먹는 중등 1800"></div>'
-      +'<div style="grid-column:1/-1"><label>이 날부터 바뀜</label>'
+      +'<div style="grid-column:1/-1"><label>이 시험 교재 <span style="color:var(--ink-soft)">(이 줄에만)</span></label>'
+      +'<input id="ev" value="'+esc(edt.v!=null?edt.v:(r.it.ownBook||(r.kind==="book"?r.book:"")||""))+'" placeholder="비우면 아래 반 교재를 씁니다"></div>'
+      +'<div style="grid-column:1/-1"><label>'+esc(r.cls)+' 반 기본 교재</label>'
+      +'<input id="ev3" value="'+esc(edt.v3!=null?edt.v3:bookOf(r.cls,sel))+'" placeholder="예: 뜯어먹는 중등 1800"></div>'
+      +'<div style="grid-column:1/-1"><label>반 교재는 이 날부터 바뀜</label>'
       +'<input type="date" id="ev2" value="'+esc(edt.v2||sel)+'"></div></div>'
-      +(hist?'<div style="margin-top:8px;font-size:11px;color:var(--ink-soft)">지금까지</div>'+hist:''),
+      +(hist?'<div style="margin-top:8px;font-size:11px;color:var(--ink-soft)">반 교재 기록</div>'+hist:''),
       '교재 저장');
   }
   if(t==='del')
@@ -851,8 +853,8 @@ function addForm(){
        +'<option value="week"'+(afRep==='week'?' selected':'')+'>매주 '+DAYK[parse(afDate||sel).getDay()]+'요일마다</option>'
        +'</select></div>')
    +'<div><label>비고</label><input id="ao" value="'+esc(afNote)+'" placeholder="메모"></div>'
-   +'<div style="grid-column:1/-1"><label>'+esc(cls||'이 반')+' 교재 <span style="color:var(--ink-soft)">(반 이름 옆에 뜨는 것)</span></label>'
-     +'<input id="abk" value="'+esc(afBook!=null?afBook:bookOf(cls,afDate||sel))+'" placeholder="예: Bricks Reading1"></div>'
+   +'<div style="grid-column:1/-1"><label>이 시험 교재 <span style="color:var(--ink-soft)">(비우면 '+esc(bookOf(cls,afDate||sel)||'없음')+')</span></label>'
+     +'<input id="abk" value="'+esc(afBook!=null?afBook:'')+'" placeholder="'+esc(bookOf(cls,afDate||sel)||'예: Bricks Reading1')+'"></div>'
    +'<div style="grid-column:1/-1"><label>'+(bookFor(afKind==='retest'?afRKind:afKind, cls)
        ? bookFor(afKind==='retest'?afRKind:afKind, cls)+' — 어디까지' : '범위 / 내용')+'</label><input id="at" value="'+esc(afWhat)+'" placeholder="'+(bookFor(afKind==='retest'?afRKind:afKind, cls)?'예: Day 5':'예: Unit 7 / Day 15')+'"></div>'
    +'</div>';
@@ -890,7 +892,8 @@ function viewWeek(){
 }
 
 function itemSummary(it){
-  const add=t=>it.src?t+' · '+it.src:t;
+  const bk=it.ownBook||'';
+  const add=t=>[t,bk,it.src].filter(Boolean).join(' · ');
   if(it.kind==='vocab')return add('단어');
   if(it.kind==='each')return add('각자 다름')+' · 매번 바뀜';
   if(it.kind==='blank')return add('백지');
@@ -927,6 +930,8 @@ function itemFields(it){
    +((it.kind==='vocab'||it.kind==='each'||it.kind==='blank')?f('src','어디서 나오는지','text'):'')
    +(it.kind==='set'?f('label','내용','text'):'')
    +(it.kind==='manual'?f('book','교재','text'):'')
+   +(it.kind==='book'?'':'<div style="grid-column:1/-1"><label>이 시험 교재 <span style="color:var(--ink-soft)">(비우면 반 교재)</span></label>'
+       +'<input data-k="ownBook" data-id="'+it.id+'" value="'+esc(it.ownBook||'')+'" placeholder="'+esc(bookOf(it.cls,sel)||'예: Bricks Reading1')+'"></div>')
    +(numbered? (it.kind==='book'?f('book','교재','text'):'')+'<div><label>번호 앞에 붙는 말</label><input data-k="ul" data-id="'+it.id+'" value="'+esc(it.ul==null?'':it.ul)+'" placeholder="Day"></div>'
        +f('anchor','이 날 기준','date')+f('base','그 날의 번호','number')
        +'<div><label>주마다</label><select data-k="step" data-id="'+it.id+'"><option value="1"'+(it.step===1?' selected':'')+'>+1 (올라감)</option><option value="-1"'+(it.step===-1?' selected':'')+'>-1 (내려감)</option></select></div>'
@@ -1101,11 +1106,13 @@ function wire(){
       edt=null; await saveCfg(); render(); toast('담임 저장'); return;
     }
     if(t==='book'){
+      const own=val.trim();
+      if(own){ if(it.kind==='book')it.book=own; else it.ownBook=own }
+      else { delete it.ownBook }
+      const cb=((document.querySelector('#ev3')||{}).value||'').trim();
       const d2=(document.querySelector('#ev2')||{}).value||sel;
-      setBook(it.cls, d2, val.trim());
-      edt=null; await saveCfg(); render();
-      toast(val.trim()? d2.slice(5)+'부터 '+val.trim() : '교재 지웠어요');
-      return;
+      if(cb!==bookOf(it.cls,sel)) setBook(it.cls, d2, cb);
+      edt=null; await saveCfg(); render(); toast('교재 저장'); return;
     }
   if(t==='del'){
       cfg.items=cfg.items.filter(x=>x.id!==it.id); edt=null; await saveCfg(); render(); return;
@@ -1243,7 +1250,8 @@ function wire(){
     if(afNote)it.note=afNote;
     if(ch.noprint)it.noprint=true;
     const bk=(afBook!=null?afBook:'').trim();
-    if(bk && bk!==bookOf(c,afDate)) setBook(c, afDate, bk);
+    if(bk){ if(it.kind==='book')it.book=bk; else it.ownBook=bk;
+            if(!bookOf(c,afDate)) setBook(c, afDate, bk); }
     cfg.items.push(it);
     const d=afDate; addOpen=false; await saveCfg();
     if(d!==sel){ await go(d) } else { render() }
@@ -1279,9 +1287,6 @@ function wire(){
     const id=b.dataset.del;
     if(armed!=='d'+id){ armed='d'+id; render(); return }
     armed=null; cfg.items=cfg.items.filter(x=>x.id!==id); await saveCfg(); render();
-  });
-  document.querySelectorAll('[data-src]').forEach(t=>t.onchange=async()=>{
-    cfg.items.find(x=>x.id===t.dataset.src).src=t.value; await saveCfg(); toast('저장'); render();
   });
   document.querySelectorAll('[data-addto]').forEach(b=>b.onclick=async()=>{
     const c=b.dataset.addto;
