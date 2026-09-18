@@ -106,6 +106,33 @@
   .numbtn{font-family:inherit;font-size:19px;font-weight:700;border:none;background:none;padding:0 1px;color:inherit;cursor:pointer;border-bottom:2px dotted currentColor}
   .empty{border:1px dashed var(--grid);border-radius:3px;padding:16px 14px;text-align:center;color:var(--ink-soft);font-size:14px}
 
+  .calbar{display:flex;align-items:center;gap:8px;margin:16px 0 10px}
+  .calbar b{font-size:18px}
+  .cal{border:1px solid var(--grid);border-radius:3px;overflow:hidden;background:#fff}
+  .calhead{display:grid;grid-template-columns:repeat(7,1fr);background:#F6F6F1;border-bottom:1px solid var(--grid)}
+  .calhead div{text-align:center;font-size:12px;font-weight:600;padding:6px 0;color:var(--ink-soft)}
+  .calhead .sun{color:var(--red)}.calhead .sat{color:#2F6FB5}
+  .calgrid{display:grid;grid-template-columns:repeat(7,1fr)}
+  .cd{min-height:66px;border-right:1px solid var(--grid);border-bottom:1px solid var(--grid);padding:3px;cursor:pointer}
+  .cd:nth-child(7n){border-right:none}
+  .cd.out{background:#FAFAF7;opacity:.45}
+  .cd.now{background:#FDFBE7}
+  .cd.pick{outline:2px solid var(--ink);outline-offset:-2px}
+  .cd.rng{background:#E8F1E6}
+  .daterow{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  .dchip{font-size:13px;font-weight:600;border:1px solid var(--grid);border-radius:999px;padding:4px 10px;background:#fff}
+  .dchip.off{color:var(--ink-soft);font-weight:500}
+  .cdn{font-size:12px;font-weight:600;margin-bottom:2px}
+  .cdn.sun{color:var(--red)}.cdn.sat{color:#2F6FB5}
+  .cev{font-size:10px;line-height:1.35;border-radius:2px;padding:1px 3px;margin-bottom:1px;
+       overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .c-hol{background:#FFDCD7;color:#8E2B22}
+  .c-leave{background:#FFF176;color:#6B5A00}
+  .c-mark{background:#D6E7FA;color:#1F4E80}
+  .row.c-hol{background:#FFE8E4;border-color:#E3A99F}
+  .row.c-leave{background:#FFF7B8;border-color:var(--hl-edge)}
+  .row.c-mark{background:#E2EDFB;border-color:#9CBEE2}
+  .sw.c-hol{background:#FFDCD7}.sw.c-leave{background:#FFF176}.sw.c-mark{background:#D6E7FA}
   .wk{border:1px solid var(--grid);border-radius:3px;overflow:hidden;background:#fff}
   .wkday{border-bottom:1px solid var(--grid);padding:9px 12px}
   .wkday:last-child{border-bottom:none}
@@ -170,6 +197,7 @@
     <div class="tabs">
       <button class="tab on" data-t="day">그날 시험</button>
       <button class="tab" data-t="week">이번 주</button>
+      <button class="tab" data-t="cal">달력</button>
       <button class="tab" data-t="set">반 설정</button>
     </div>
   </div>
@@ -199,9 +227,26 @@ const N={TWC:5,TPG:9,TPA:3,THA:6,TPP:10,TPV:7,TPD:7,TPC:10,THI:10,TPN:7,
   TPH:10,TPT:9,TPW:10,TMA:3,TPQ:11,TPX:5,TPO:5,
   TMX:9,TMP:8,TMG:8,TMB:7,TPF:4,TP1:5,TM1:8};
 
-const SEEDV=10;
+const SEEDV=11;
+const APP_VER='1.13';
 
 /* 반별 명단 — 시간표에서 읽음. 틀린 이름은 아래 ROSTER에서 고치면 됩니다. */
+const HOL0=[
+ ['2026-01-01','신정'],['2026-02-16','설 연휴'],['2026-02-17','설날'],['2026-02-18','설 연휴'],
+ ['2026-03-01','삼일절'],['2026-03-02','대체공휴일'],['2026-05-05','어린이날'],
+ ['2026-05-24','부처님오신날'],['2026-05-25','대체공휴일'],['2026-06-03','지방선거'],
+ ['2026-06-06','현충일'],['2026-08-15','광복절'],
+ ['2026-09-24','추석 연휴'],['2026-09-25','추석'],['2026-09-26','추석 연휴'],['2026-09-28','대체공휴일'],
+ ['2026-10-03','개천절'],['2026-10-05','대체공휴일'],['2026-10-09','한글날'],['2026-12-25','성탄절'],
+ ['2027-01-01','신정'],['2027-02-06','설 연휴'],['2027-02-07','설날'],['2027-02-08','설 연휴'],
+ ['2027-02-09','대체공휴일'],['2027-03-01','삼일절'],['2027-03-03','대통령선거'],
+ ['2027-05-05','어린이날'],['2027-05-13','부처님오신날'],['2027-06-06','현충일'],['2027-06-07','대체공휴일'],
+ ['2027-08-15','광복절'],['2027-08-16','대체공휴일'],
+ ['2027-09-14','추석 연휴'],['2027-09-15','추석'],['2027-09-16','추석 연휴'],
+ ['2027-10-03','개천절'],['2027-10-04','대체공휴일'],['2027-10-09','한글날'],['2027-10-11','대체공휴일'],
+ ['2027-12-25','성탄절']
+];
+const CALT={hol:{t:'공휴일',c:'c-hol'},leave:{t:'연차',c:'c-leave'},mark:{t:'중요한 날',c:'c-mark'}};
 const ROSTER0={
  TWC:['이준혁','조하준','최별','최유은','최유하'],
  TPG:['김루아','김하엘','류수현','박서아','배서연','위민서','조수현','조우진','조재현'],
@@ -240,14 +285,22 @@ function roster(cls){
 
 function merge(old){
   const fresh=seed();
-  // 직접 추가하거나 옮긴 것(id 앞글자 u/m/k/r)은 그대로 살림
-  const mine=(old.items||[]).filter(i=>/^[umkr]/.test(i.id||''));
-  fresh.items=fresh.items.concat(mine);
-  fresh.books=Object.assign({}, fresh.books, old.books||{});
-  fresh.roster=Object.assign({}, fresh.roster, old.roster||{});
-  fresh.teachers=Object.assign({}, fresh.teachers, old.teachers||{});
-  return fresh;
+  const sig=i=>[i.cls,i.once||('w'+i.wd),i.kind,i.fmt||'',i.book||''].join('|');
+  const have={};
+  (old.items||[]).forEach(i=>{ have[sig(i)]=1 });
+  // 예전 것은 전부 그대로 두고, 새로 생긴 것만 더함
+  const add=fresh.items.filter(i=>!have[sig(i)]);
+  const out=Object.assign({}, old, {v:SEEDV});
+  out.items=(old.items||[]).concat(add);
+  out.books=Object.assign({}, fresh.books, old.books||{});
+  out.roster=Object.assign({}, fresh.roster, old.roster||{});
+  out.teachers=Object.assign({}, fresh.teachers, old.teachers||{});
+  const oldCal=old.cal||[];
+  const hasDate={}; oldCal.forEach(e=>{ if(e.type==='hol')hasDate[e.date]=1 });
+  out.cal=oldCal.concat((fresh.cal||[]).filter(e=>!hasDate[e.date]));
+  return out;
 }
+
 function seed(){
   let k=0;
   const A=o=>Object.assign({id:'s'+(++k),sure:true,off:false,n:N[o.cls]},o);
@@ -263,7 +316,8 @@ function seed(){
   B('TPQ','새 교재 (추후 기입)');
   const roster=JSON.parse(JSON.stringify(ROSTER0));
   const teachers={};
-  return {v:SEEDV, books, roster, teachers, items:[
+  const cal=HOL0.map((x,i)=>({id:'h'+i, date:x[0], type:'hol', text:x[1]}));
+  return {v:SEEDV, books, roster, teachers, cal, items:[
 
   /* ── 매주 월요일 ── */
   A({cls:'TPV',kind:'vocab',wd:1}),
@@ -332,6 +386,7 @@ const RULES={};
 
 let cfg=seed(), logs={}, sel=null, tab='day', memory=false, open={}, addOpen=false, editing={};
 let rosOpen=null, dayOpen={}, rosSecOpen=false;
+let calMo=null, calDay=null, calAdd=null, calEdit=null;  // calAdd={start,end,ty,tx}
 let rtOpen=null, rtSel={}, rtDate='', rtWhat='', rtRound=1, rtKind='vocab', rtAll=false;
 let afCls='', afNew='', afKind='retest', afDate='', afN='', afWhat='', afNote='', afPrint='', afSel={}, afRound=1, afRKind='vocab', afRep='one', afBook=null;
 
@@ -632,7 +687,7 @@ function render(){
   $('#btoday').classList.toggle('on',sel===today);
   $('#btmr').classList.toggle('on',sel===shift(today,1));
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.t===tab));
-  $('#main').innerHTML= tab==='day'?viewDay():tab==='week'?viewWeek():viewSet();
+  $('#main').innerHTML= tab==='day'?viewDay():tab==='week'?viewWeek():tab==='cal'?viewCal():viewSet();
   wire();
 }
 
@@ -984,10 +1039,97 @@ function rosterSection(){
   return h+'</div>';
 }
 
+const d2s=d=>d.slice(5).replace('-','/');
+function calOf(d){ return (cfg.cal||[]).filter(e=>e.date===d) }
+function viewCal(){
+  const base=calMo||sel.slice(0,7);
+  const [y,m]=base.split('-').map(Number);
+  const first=new Date(y,m-1,1), last=new Date(y,m,0);
+  const start=new Date(first); start.setDate(1-first.getDay());
+  const today=ymd(new Date());
+  let h='<div class="calbar"><button class="nav" data-cm="-1">‹</button>'
+   +'<b>'+y+'년 '+m+'월</b><button class="nav" data-cm="1">›</button>'
+   +'<button class="chip" data-cm="0" style="margin-left:auto">이번 달</button></div>'
+   +'<div class="cal"><div class="calhead">'
+   +['일','월','화','수','목','금','토'].map((d,i)=>'<div class="'+(i===0?'sun':i===6?'sat':'')+'">'+d+'</div>').join('')
+   +'</div><div class="calgrid">';
+  for(let i=0;i<42;i++){
+    const dt=new Date(start); dt.setDate(start.getDate()+i);
+    const ds=ymd(dt), out=dt.getMonth()!==m-1;
+    if(i>=35 && out) continue;
+    const ev=calOf(ds);
+    const hol=ev.some(e=>e.type==='hol');
+    const inRange = calAdd && ds>=calAdd.start && ds<=(calAdd.end||calAdd.start);
+    h+='<div class="cd'+(out?' out':'')+(ds===today?' now':'')+(ds===calDay?' pick':'')
+      +(inRange?' rng':'')+'" data-cd="'+ds+'">'
+     +'<div class="cdn'+(hol||dt.getDay()===0?' sun':dt.getDay()===6?' sat':'')+'">'+dt.getDate()+'</div>'
+     +ev.slice(0,3).map(e=>'<div class="cev '+CALT[e.type].c+'">'+esc(e.text||CALT[e.type].t)+'</div>').join('')
+     +(ev.length>3?'<div class="cev">+'+(ev.length-3)+'</div>':'')
+     +'</div>';
+  }
+  h+='</div></div>';
+  h+='<div class="note"><span class="sw c-hol"></span>공휴일 <span class="sw c-leave"></span>연차 '
+   +'<span class="sw c-mark"></span>중요한 날 · 날짜를 누르면 넣고 고칠 수 있어요</div>';
+
+  if(calDay){
+    const d=parse(calDay), ev=calOf(calDay);
+    h+='<div class="sec"><div class="sec-h"><b>'+(d.getMonth()+1)+'월 '+d.getDate()+'일 '+DAYK[d.getDay()]+'요일</b>'
+     +'<span>'+ev.length+'개</span></div>';
+    ev.forEach(e=>{
+      const on=calEdit===e.id;
+      h+='<div class="row '+CALT[e.type].c+'"><div class="top">'
+       +'<div class="code" style="min-width:64px">'+CALT[e.type].t+'</div>'
+       +'<div class="body" style="flex:1">'+esc(e.text||'')
+       +(e.span?' <span style="font-size:11px;color:var(--ink-soft)">'+esc(e.span)+'</span>':'')+'</div>'
+       +'<button class="notebtn" data-cedit="'+e.id+'">'+(on?'닫기':'고치기')+'</button>'
+       +'<button class="notebtn'+(armed==='c'+e.id?' has':'')+'" data-cdel="'+e.id+'">'
+       +(armed==='c'+e.id?(e.gid?'기간 전체 삭제?':'정말 삭제?'):'삭제')+'</button></div>'
+       +(on?'<div class="fields" style="margin-top:8px">'
+          +'<div><label>종류</label><select id="cedty">'
+            +['leave','mark','hol'].map(v=>'<option value="'+v+'"'+(e.type===v?' selected':'')+'>'+CALT[v].t+'</option>').join('')
+            +'</select></div>'
+          +'<div><label>날짜</label><input type="date" id="cedd" value="'+esc(e.date)+'"></div>'
+          +'<div style="grid-column:1/-1"><label>이름 / 내용</label>'
+          +'<input id="cedv" value="'+esc(e.text||'')+'"></div></div>'
+          +(e.gid?'<div class="meta">'+esc(e.span||'')+' 전체가 같이 바뀝니다. 날짜는 이 줄만 옮겨져요.</div>':'')
+          +'<div class="toolbar" style="margin:8px 0 0"><button class="btn" data-cok="'+e.id+'">저장</button></div>':'')
+       +'</div>';
+    });
+    if(!ev.length)h+='<div class="empty">아직 없어요</div>';
+    if(calAdd){
+      const ds=d2s(calAdd.start), de=calAdd.end?d2s(calAdd.end):'';
+      const days=calAdd.end?(Math.round((parse(calAdd.end)-parse(calAdd.start))/86400000)+1):1;
+      h+='<div class="item" style="margin-top:10px">'
+       +'<div class="line1"><b>넣기</b></div>'
+       +'<div class="daterow"><span class="dchip">시작 '+ds+'</span>'
+       +'<span class="dchip'+(de?'':' off')+'">끝 '+(de||'하루만')+'</span>'
+       +(de?'<button class="notebtn" data-cclr="1">끝 지우기</button>':'')
+       +'<span style="font-size:12px;color:var(--ink-soft);margin-left:auto">'+days+'일</span></div>'
+       +'<div class="meta" style="margin:4px 0 8px">위 달력에서 <b>다른 날을 누르면 끝 날짜</b>가 잡혀요. 한 번 더 누르면 다시 시작 날짜가 됩니다.</div>'
+       +'<div class="fields">'
+       +'<div><label>종류</label><select id="cty">'
+         +['leave','mark','hol'].map(v=>'<option value="'+v+'"'+(calAdd.ty===v?' selected':'')+'>'+CALT[v].t+'</option>').join('')
+         +'</select></div>'
+       +'<div><label>날짜 직접</label><input type="date" id="cdt" value="'+calAdd.start+'"></div>'
+       +'<div style="grid-column:1/-1"><label>이름 / 내용</label>'
+       +'<input id="ctx" value="'+esc(calAdd.tx||'')+'" placeholder="연차는 선생님 이름, 중요한 날은 내용"></div></div>'
+       +'<div class="toolbar"><button class="btn" data-cadd="1">넣기</button>'
+       +'<button class="btn ghost" data-cno="1">취소</button></div></div>';
+    }else{
+      h+='<div class="toolbar"><button class="btn ghost" data-cnew="1">＋ 연차 / 중요한 날 넣기</button></div>';
+    }
+    h+='</div>';
+  }
+  return h;
+}
+
 function viewSet(){
   const act=cfg.items;
   let h='<div class="note">'+(WORKER?'이 설정은 <b>링크를 가진 선생님 모두가 같이 보고 고칩니다.</b> (v'+SEEDV+' · rev '+rev+')':'지금은 <b>내 브라우저에만</b> 저장돼요. 파일 맨 위 WORKER 주소를 채우면 다 같이 쓰게 됩니다.')+' 한 줄을 누르면 그 시험만 펼쳐서 고칠 수 있어요. <b class="warn">확인</b>은 제가 확신 못 한 부분, <b class="warn">안 봄</b>은 시험을 안 보는 반(회색)이에요.</div>'
-   +'<div class="toolbar"><button class="btn ghost" data-export="1">백업 복사</button>'
+   +'<div class="note" style="margin:0 0 8px">앱 버전 <b>'+APP_VER+'</b>'
+   +(WORKER?' · 같이 쓰는 중':' · 내 브라우저에만')+'</div>'
+   +'<div class="toolbar"><button class="btn ghost" data-fresh="1">최신으로 새로 고침</button>'
+   +'<button class="btn ghost" data-export="1">백업 복사</button>'
    +'<button class="btn danger" data-reset="1">'+(armed==='reset'?'정말 되돌릴까요?':'처음 상태로')+'</button></div>';
   h+=rosterSection();
   for(let w=1;w<=5;w++){
@@ -1293,6 +1435,85 @@ function wire(){
     cfg.items.push({id:'u'+Date.now(),cls:c,kind:'vocab',wd:1,n:N[c]||0,sure:true,off:false});
     await saveCfg(); render();
   });
+  document.querySelectorAll('[data-cm]').forEach(b=>b.onclick=()=>{
+    const v=+b.dataset.cm;
+    if(v===0){ calMo=ymd(new Date()).slice(0,7) }
+    else{
+      const [y,m]=(calMo||sel.slice(0,7)).split('-').map(Number);
+      const d=new Date(y,m-1+v,1); calMo=ymd(d).slice(0,7);
+    }
+    calDay=null; calAdd=null; calEdit=null; render();
+  });
+  const keep=()=>{
+    if(!calAdd)return;
+    const g=id=>{const e=document.querySelector(id);return e?e.value:null};
+    const a=g('#cty'); if(a!==null)calAdd.ty=a;
+    const b=g('#ctx'); if(b!==null)calAdd.tx=b;
+  };
+  document.querySelectorAll('[data-cd]').forEach(el=>el.onclick=()=>{
+    const d=el.dataset.cd;
+    if(calAdd){                       // 넣는 중이면 달력을 눌러 기간을 잡음
+      keep();
+      if(!calAdd.end && d>calAdd.start) calAdd.end=d;
+      else { calAdd.start=d; calAdd.end='' }
+      calDay=calAdd.start;
+    }else{
+      calDay=(calDay===d)?null:d; calEdit=null;
+    }
+    armed=null; render();
+  });
+  const cnew=document.querySelector('[data-cnew]');
+  if(cnew)cnew.onclick=()=>{calAdd={start:calDay,end:'',ty:'leave',tx:''};render()};
+  const cno=document.querySelector('[data-cno]');
+  if(cno)cno.onclick=()=>{calAdd=null;render()};
+  const cclr=document.querySelector('[data-cclr]');
+  if(cclr)cclr.onclick=()=>{keep();calAdd.end='';render()};
+  const cdt=document.querySelector('#cdt');
+  if(cdt&&calAdd)cdt.onchange=()=>{keep();calAdd.start=cdt.value;calAdd.end='';calDay=cdt.value;calMo=cdt.value.slice(0,7);render()};
+  const cadd=document.querySelector('[data-cadd]');
+  if(cadd)cadd.onclick=async()=>{
+    const ty=(document.querySelector('#cty')||{}).value||'leave';
+    let dt=(document.querySelector('#cdt')||{}).value||calAdd.start;
+    const tx=((document.querySelector('#ctx')||{}).value||'').trim();
+    if(!dt){toast('날짜를 골라주세요');return}
+    if(!tx&&ty!=='hol'){toast(ty==='leave'?'선생님 이름을 넣어주세요':'내용을 넣어주세요');return}
+    let dt2=calAdd.end||dt;
+    if(dt2<dt){ const t0=dt; dt=dt2; dt2=t0 }
+    const gid='g'+Date.now();
+    const add=[]; let cur=dt, guard=0;
+    while(cur<=dt2 && guard++<400){
+      add.push({id:'c'+Date.now()+'_'+guard, date:cur, type:ty, text:tx||CALT[ty].t,
+                gid:(dt!==dt2?gid:undefined), span:(dt!==dt2?dt.slice(5).replace('-','/')+'~'+dt2.slice(5).replace('-','/'):undefined)});
+      cur=shift(cur,1);
+    }
+    cfg.cal=(cfg.cal||[]).concat(add);
+    calAdd=null; calDay=dt; calMo=dt.slice(0,7);
+    await saveCfg(); render(); toast(add.length>1?add.length+'일 넣었어요':'넣었어요');
+  };
+  document.querySelectorAll('[data-cedit]').forEach(b=>b.onclick=()=>{
+    calEdit=(calEdit===b.dataset.cedit)?null:b.dataset.cedit; render();
+  });
+  const cok=document.querySelector('[data-cok]');
+  if(cok)cok.onclick=async()=>{
+    const v=((document.querySelector('#cedv')||{}).value||'').trim();
+    const ty=(document.querySelector('#cedty')||{}).value;
+    const nd=(document.querySelector('#cedd')||{}).value;
+    const e=(cfg.cal||[]).find(x=>x.id===cok.dataset.cok);
+    if(e){
+      const apply=x=>{ x.text=v; if(ty)x.type=ty };
+      if(e.gid)(cfg.cal||[]).forEach(x=>{ if(x.gid===e.gid)apply(x) }); else apply(e);
+      if(nd&&nd!==e.date){ e.date=nd; delete e.gid; delete e.span; calDay=nd; calMo=nd.slice(0,7) }
+    }
+    calEdit=null; await saveCfg(); render(); toast('고쳤어요');
+  };
+  document.querySelectorAll('[data-cdel]').forEach(b=>b.onclick=async()=>{
+    const id=b.dataset.cdel;
+    if(armed!=='c'+id){ armed='c'+id; render(); return }
+    armed=null;
+    const e=(cfg.cal||[]).find(x=>x.id===id);
+    cfg.cal=(cfg.cal||[]).filter(x=> (e&&e.gid) ? x.gid!==e.gid : x.id!==id);
+    await saveCfg(); render();
+  });
   document.querySelectorAll('[data-sec]').forEach(el=>el.onclick=()=>{
     const k=el.dataset.sec;
     if(k==='ros')rosSecOpen=!rosSecOpen;
@@ -1344,6 +1565,17 @@ function wire(){
     const c1=allClasses()[0]||'새 반';
     cfg.items.push({id,cls:c1,kind:'vocab',wd:1,n:roster(c1).length||N[c1]||0,sure:true,off:false});
     editing={}; editing[id]=true; await saveCfg(); render();
+  };
+  const fr=document.querySelector('[data-fresh]');
+  if(fr)fr.onclick=async()=>{
+    try{
+      if('serviceWorker' in navigator){
+        const rs=await navigator.serviceWorker.getRegistrations();
+        await Promise.all(rs.map(r=>r.unregister()));
+      }
+      if(window.caches){ const ks=await caches.keys(); await Promise.all(ks.map(k=>caches.delete(k))) }
+    }catch(e){}
+    location.reload(true);
   };
   const ex=document.querySelector('[data-export]');
   if(ex)ex.onclick=()=>{const s=JSON.stringify(cfg);
