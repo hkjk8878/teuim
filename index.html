@@ -92,6 +92,10 @@
   .nm{font-family:inherit;font-size:13px;padding:5px 10px;border:1px solid var(--grid);border-radius:999px;background:#fff;color:var(--ink-soft);cursor:pointer}
   .nm.on{background:var(--ink);color:#fff;border-color:var(--ink)}
   .nm.ok{background:#1F7A3D;color:#fff;border-color:#1F7A3D}
+  .nm.danger{background:#FFE1DB;color:var(--red);border-color:var(--red)}
+  .confirm{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0 2px;
+           padding:9px 10px;border:1px solid var(--red);border-radius:3px;background:#FFF4F2}
+  .confirm span{font-size:13px;flex:1;min-width:120px}
   .thumbs{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
   .th{position:relative;display:inline-block}
   .th img{width:74px;height:74px;object-fit:cover;border:1px solid var(--grid);border-radius:3px;background:#fff;cursor:zoom-in}
@@ -228,7 +232,7 @@ const N={TWC:5,TPG:9,TPA:3,THA:6,TPP:10,TPV:7,TPD:7,TPC:10,THI:10,TPN:7,
   TMX:9,TMP:8,TMG:8,TMB:7,TPF:4,TP1:5,TM1:8};
 
 const SEEDV=11;
-const APP_VER='1.13';
+const APP_VER='1.14';
 
 /* 반별 명단 — 시간표에서 읽음. 틀린 이름은 아래 ROSTER에서 고치면 됩니다. */
 const HOL0=[
@@ -996,7 +1000,12 @@ function itemFields(it){
    +'</div><div class="toolbar">'
    +'<button class="mini" data-off="'+it.id+'">'+(it.off?'다시 보게 하기':'이 시험 안 보기')+'</button>'
    +'<button class="mini" data-del="'+it.id+'">삭제</button>'
-   +'<button class="mini" data-close="'+it.id+'">닫기</button></div>';
+   +'<button class="mini" data-close="'+it.id+'">닫기</button></div>'
+   +(armed==='d'+it.id
+     ? '<div class="confirm"><span>이 시험을 지울까요?</span>'
+       +'<button class="btn danger" data-delok="'+it.id+'">지우기</button>'
+       +'<button class="btn ghost" data-delno="1">취소</button></div>'
+     : '');
 }
 function setRow(it){
   const on=!!editing[it.id];
@@ -1022,9 +1031,14 @@ function rosterSection(){
     if(on){
       h+='<div style="padding:0 10px 10px">'
        +'<div class="names">'+list.map(nm=>
-         '<button class="nm'+(armed==='n'+c+nm?' on':'')+'" data-rosdel="'+esc(c)+'|'+esc(nm)+'">'
-         +esc(nm)+(armed==='n'+c+nm?' 지울까요?':' ✕')+'</button>').join('')
+         '<button class="nm'+(armed==='n'+c+nm?' danger':'')+'" data-rosdel="'+esc(c)+'|'+esc(nm)+'">'
+         +esc(nm)+' ✕</button>').join('')
        +(list.length?'':'<span style="font-size:12px;color:var(--ink-soft)">아직 없어요</span>')+'</div>'
+       +(armed&&armed.indexOf('n'+c)===0
+         ? '<div class="confirm"><span><b>'+esc(armed.slice(('n'+c).length))+'</b> 지울까요?</span>'
+           +'<button class="btn danger" data-rosok="'+esc(c)+'|'+esc(armed.slice(('n'+c).length))+'">지우기</button>'
+           +'<button class="btn ghost" data-rosno2="1">취소</button></div>'
+         : '')
        +'<div class="fields" style="margin-top:8px">'
        +'<div style="grid-column:1/-1"><label>담임선생님</label>'
        +'<input id="rostch" value="'+esc(teacherOf(c))+'" placeholder="예: Daisy T"></div>'
@@ -1425,11 +1439,18 @@ function wire(){
   document.querySelectorAll('[data-off]').forEach(b=>b.onclick=async()=>{
     const it=cfg.items.find(x=>x.id===b.dataset.off); it.off=!it.off; await saveCfg(); render();
   });
-  document.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{
-    const id=b.dataset.del;
-    if(armed!=='d'+id){ armed='d'+id; render(); return }
-    armed=null; cfg.items=cfg.items.filter(x=>x.id!==id); await saveCfg(); render();
+  document.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{
+    armed='d'+b.dataset.del; render();
   });
+  const delno=document.querySelector('[data-delno]');
+  if(delno)delno.onclick=()=>{armed=null;render()};
+  const delok=document.querySelector('[data-delok]');
+  if(delok)delok.onclick=async()=>{
+    const id=delok.dataset.delok;
+    armed=null; editing={};
+    cfg.items=cfg.items.filter(x=>x.id!==id);
+    await saveCfg(); render(); toast('지웠어요');
+  };
   document.querySelectorAll('[data-addto]').forEach(b=>b.onclick=async()=>{
     const c=b.dataset.addto;
     cfg.items.push({id:'u'+Date.now(),cls:c,kind:'vocab',wd:1,n:N[c]||0,sure:true,off:false});
@@ -1525,14 +1546,20 @@ function wire(){
   });
   const rosno=document.querySelector('[data-rosno]');
   if(rosno)rosno.onclick=()=>{rosOpen=null;render()};
-  document.querySelectorAll('[data-rosdel]').forEach(b=>b.onclick=async()=>{
+  document.querySelectorAll('[data-rosdel]').forEach(b=>b.onclick=()=>{
     const [c,nm]=b.dataset.rosdel.split('|');
-    if(armed!=='n'+c+nm){ armed='n'+c+nm; render(); return }
+    armed='n'+c+nm; render();
+  });
+  const rosno2=document.querySelector('[data-rosno2]');
+  if(rosno2)rosno2.onclick=()=>{armed=null;render()};
+  const rosok=document.querySelector('[data-rosok]');
+  if(rosok)rosok.onclick=async()=>{
+    const [c,nm]=rosok.dataset.rosok.split('|');
     armed=null;
     cfg.roster=cfg.roster||{};
     cfg.roster[c]=(roster(c)||[]).filter(x=>x!==nm);
-    await saveCfg(); render();
-  });
+    await saveCfg(); render(); toast(nm+' 뺐어요');
+  };
   document.querySelectorAll('[data-rosadd]').forEach(b=>b.onclick=async()=>{
     const c=b.dataset.rosadd, el=document.querySelector('#rosin');
     const tel=document.querySelector('#rostch');
