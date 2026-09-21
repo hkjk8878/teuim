@@ -232,7 +232,7 @@ const N={TWC:5,TPG:9,TPA:3,THA:6,TPP:10,TPV:7,TPD:7,TPC:10,THI:10,TPN:7,
   TMX:9,TMP:8,TMG:8,TMB:7,TPF:4,TP1:5,TM1:8};
 
 const SEEDV=11;
-const APP_VER='1.14';
+const APP_VER='1.16';
 
 /* 반별 명단 — 시간표에서 읽음. 틀린 이름은 아래 ROSTER에서 고치면 됩니다. */
 const HOL0=[
@@ -295,7 +295,14 @@ function merge(old){
   // 예전 것은 전부 그대로 두고, 새로 생긴 것만 더함
   const add=fresh.items.filter(i=>!have[sig(i)]);
   const out=Object.assign({}, old, {v:SEEDV});
-  out.items=(old.items||[]).concat(add);
+  out.items=(old.items||[]).concat(add).map(i=>{
+    if(i.kind==='vocab'&&i.base!=null){       // 단어시험은 번호를 쓰지 않음
+      const j=Object.assign({},i);
+      delete j.base; delete j.anchor; delete j.step; delete j.ul;
+      return j;
+    }
+    return i;
+  });
   out.books=Object.assign({}, fresh.books, old.books||{});
   out.roster=Object.assign({}, fresh.roster, old.roster||{});
   out.teachers=Object.assign({}, fresh.teachers, old.teachers||{});
@@ -335,7 +342,7 @@ function seed(){
   A({cls:'TPO',kind:'book',wd:2,book:'워드마스터 중등 베이직',base:1,anchor:'2026-09-08',step:1,fmt:'뜻·영단어 섞어서'}),
   A({cls:'TPN',kind:'book',wd:2,book:'뜯중 1800',base:14,anchor:'2026-09-08',step:1,fmt:'뜻·영단어 섞어서'}),
   A({cls:'TPQ',kind:'book',wd:2,book:'새 교재 (추후 기입)',base:1,anchor:'2026-09-15',step:1,from:'2026-09-15',fmt:'뜻·영단어 섞어서',sure:false}),
-  A({cls:'THI',kind:'vocab',wd:2,from:'2026-09-15',src:'Bricks reading 30-1',ul:'Unit',base:7,anchor:'2026-09-15',step:1}),
+  A({cls:'THI',kind:'vocab',wd:2,from:'2026-09-15'}),
 
   /* ── 매주 수요일 ── */
   A({cls:'TPD',kind:'blank',wd:3}),
@@ -471,7 +478,8 @@ async function load(){
     const st = await pullAll();
     if(st.logs) logs = st.logs;
     if(st.cfg && st.cfg.v===SEEDV) cfg = st.cfg;
-    else if(st.cfg){ cfg = merge(st.cfg); await pushAll(); }  // 시간표만 새로, 직접 넣은 건 그대로
+    else if(st.cfg && st.cfg.v>SEEDV) cfg = st.cfg;           // 이 기기 앱이 더 옛날 — 손대지 않음
+    else if(st.cfg){ cfg = merge(st.cfg); await pushAll(); }  // 내용은 그대로, 새것만 더함
     else { cfg = seed(); await pushAll(); }
   }catch(e){
     memory = true;
@@ -667,7 +675,7 @@ function content(r){
     return '<span style="color:var(--red);font-weight:700">'+roundName(r.it.round)+'</span>'
       +(w?' <span>'+esc(w)+'</span>':'');
   }
-  if(r.kind==='vocab')return r.src?esc(r.src)+unit:'단어시험'+unit;
+  if(r.kind==='vocab')return '단어시험';
   if(r.kind==='blank'){
     const v=entry(sel,r.it.id).val||r.src;
     return '백지'+(v?' <span style="color:var(--ink-soft)">· '+esc(v)+'</span>':'');
@@ -699,7 +707,7 @@ function rowHTML(r){
   const e=entry(sel,r.it.id), id=r.it.id, k=KIND[r.kind].cls;
   const q=qtyOf(r), edited=e.qty!=null&&e.qty!==r.n;
   const needPrint=prints(r);
-  let h='<div class="row '+k+' '+tintOf(r)+(needPrint&&e.pr?' done':'')+'"><div class="top">';
+  let h='<div class="row '+k+' '+tintOf(r)+'"><div class="top">';
   if(needPrint)
     h+='<button class="tg pr'+(e.pr?' on':'')+'" data-pr="'+id+'">'+(e.pr?'뽑음 ✓':'뽑기')+'</button>';
   const bk=rowBook(r), tc=teacherOf(r.cls);
@@ -1669,6 +1677,33 @@ if('serviceWorker' in navigator){
   window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 }
 
+/* ── 새 버전이 올라오면 알아서 받아오기 ── */
+async function checkUpdate(){
+  try{
+    const r=await fetch('index.html?cb='+Date.now(),{cache:'no-store'});
+    if(!r.ok)return;
+    const txt=await r.text();
+    const m=txt.match(/const APP_VER='([^']+)'/);
+    if(!m || m[1]===APP_VER) return;
+    let n=0;
+    try{ n=Number(sessionStorage.getItem('upd')||0) }catch(e){}
+    if(n>=2) return;                       // 혹시 모를 무한 새로고침 막기
+    try{ sessionStorage.setItem('upd', String(n+1)) }catch(e){}
+    toast('새 버전을 받아오는 중…');
+    try{
+      if('serviceWorker' in navigator){
+        const rs=await navigator.serviceWorker.getRegistrations();
+        await Promise.all(rs.map(x=>x.unregister()));
+      }
+      if(window.caches){ const ks=await caches.keys(); await Promise.all(ks.map(k=>caches.delete(k))) }
+    }catch(e){}
+    setTimeout(()=>location.reload(), 400);
+  }catch(e){}
+}
+setInterval(checkUpdate, 10*60*1000);
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden)checkUpdate() });
+window.addEventListener('focus', checkUpdate);
+
 /* ── 자동 동기화 ── */
 const busy=()=>addOpen||rtOpen||edt||armed||Object.keys(open).some(k=>open[k]);
 async function poll(){
@@ -1691,7 +1726,7 @@ setInterval(poll, 15000);
 document.addEventListener('visibilitychange',()=>{ if(!document.hidden)poll() });
 window.addEventListener('focus',poll);
 
-(async()=>{await load();await go(ymd(new Date()))})();
+(async()=>{await load();await go(ymd(new Date()));checkUpdate()})();
 </script>
 </body>
 </html>

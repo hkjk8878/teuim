@@ -1,6 +1,6 @@
 /* 0교시 시험 트래커 — 서비스워커
    네트워크 우선. 새 파일을 올리면 바로 반영되고, 인터넷이 없을 때만 캐시를 씁니다. */
-const CACHE = 'teuim-v1';
+const CACHE = 'teuim-v2';
 const SHELL = ['./', './index.html', './manifest.webmanifest',
                './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 
@@ -23,7 +23,7 @@ self.addEventListener('fetch', e => {
   if (url.origin !== location.origin) return;          // Worker 통신은 그대로 통과
 
   e.respondWith(
-    fetch(req)
+    fetch(req, { cache: 'no-store' })
       .then(res => {
         const copy = res.clone();
         caches.open(CACHE).then(c => c.put(req, copy)).catch(() => {});
