@@ -232,7 +232,7 @@ const N={TWC:5,TPG:9,TPA:3,THA:6,TPP:10,TPV:7,TPD:7,TPC:10,THI:10,TPN:7,
   TMX:9,TMP:8,TMG:8,TMB:7,TPF:4,TP1:5,TM1:8};
 
 const SEEDV=11;
-const APP_VER='1.17';
+const APP_VER='1.20';
 
 /* 반별 명단 — 시간표에서 읽음. 틀린 이름은 아래 ROSTER에서 고치면 됩니다. */
 const HOL0=[
@@ -518,7 +518,8 @@ function resolve(it,date){
     if(isHol(date))return null;                 // 공휴일 = 학원 쉼
   }
   const rn=roster(it.cls).length;
-  const o={it,kind:it.kind,cls:it.cls,n:(it.kind==='retest'? (it.n||0) : (rn||it.n||0)),sure:it.sure!==false,note:it.note||'',label:it.label||'',book:it.book||'',src:it.src||''};
+  const ib=bookOfItem(it,date);
+  const o={it,kind:it.kind,cls:it.cls,n:(it.kind==='retest'? (it.n||0) : (rn||it.n||0)),sure:it.sure!==false,note:it.note||'',label:it.label||'',book:(ib||it.book||''),src:it.src||''};
   if(it.base!=null&&it.anchor){
     const skipped=(it.skip||[]).filter(x=>x>it.anchor&&x<date).length + holSkips(it,date);
     o.num=it.base+it.step*(weeksBetween(it.anchor,date)-skipped);
@@ -589,6 +590,19 @@ function bookOf(cls,date){
   Object.keys(h).forEach(d=>{ if(d<=date && d>=best){ best=d; bk=h[d] } });
   return bk;
 }
+/* 그 시험이 그날 쓰던 교재 — 바꾼 날 이전은 예전 교재가 그대로 남습니다 */
+function bookOfItem(it,date){
+  const h=it.books;
+  if(!h)return '';
+  let best='', bk='';
+  Object.keys(h).forEach(d=>{ if(d<=date && d>=best){ best=d; bk=h[d] } });
+  return bk;
+}
+function setItemBook(it,date,name){
+  it.books=it.books||{};
+  if(name) it.books[date]=name; else delete it.books[date];
+  if(!Object.keys(it.books).length) delete it.books;
+}
 function teacherOf(cls){
   const T=(cfg&&cfg.teachers)||{};
   if(T[cls])return T[cls];
@@ -649,7 +663,7 @@ function rangeOf(r){
   return t;
 }
 function rowBook(r){
-  return r.it.ownBook || (r.kind==='book'? (r.book||'') : '') || bookOf(r.cls, sel);
+  return bookOfItem(r.it,sel) || r.it.ownBook || (r.kind==='book'? (r.book||'') : '') || bookOf(r.cls, sel);
 }
 function tintOf(r){
   if(r.kind==='retest')return 't-retest';
@@ -791,7 +805,8 @@ function edtPanel(r){
         +CHOICES.map(x=>'<option value="'+x.v+'"'+(cur===x.v?' selected':'')+'>'+x.t+'</option>').join('')
         +'</select></div>'
       +'<div><label>적용</label><select id="ev3">'
-        +'<option value="one"'+(edt.v3==='all'?'':' selected')+'>이 날만</option>'
+        +'<option value="one"'+(edt.v3==='one'||!edt.v3?' selected':'')+'>이 날만</option>'
+        +'<option value="hold"'+(edt.v3==='hold'?' selected':'')+'>이 날만 · 교재 번호는 다음으로 미룸</option>'
         +'<option value="all"'+(edt.v3==='all'?' selected':'')+'>이 날부터 매주 계속</option></select></div>'
       +'<div style="grid-column:1/-1"><label>'+(c.book||cur==='self'?'어디까지 (예: Day 5)':'범위 / 내용')+'</label>'
       +'<input id="ev2" value="'+esc(edt.v2||'')+'" placeholder="비워도 돼요"></div></div>',
@@ -804,19 +819,17 @@ function edtPanel(r){
       '담임 저장');
   }
   if(t==='book'){
-    const h=(cfg.books||{})[r.cls]||{};
-    const hist=Object.keys(h).sort().map(d=>
+    const hh=r.it.books||{};
+    const hist=Object.keys(hh).sort().map(d=>
       '<div style="font-size:12px;color:var(--ink-soft);padding:2px 0">'
-      +(d==='2000-01-01'?'처음부터':d.replace(/-/g,'.').slice(2))+' · '+esc(h[d])
-      +' <button class="notebtn" data-bkdel="'+r.cls+'|'+d+'" style="padding:1px 6px">지움</button></div>').join('');
+      +d.replace(/-/g,'.').slice(2)+'부터 · '+esc(hh[d])
+      +' <button class="notebtn" data-bkdel="'+r.it.id+'|'+d+'" style="padding:1px 6px">지움</button></div>').join('');
     return box('<div class="fields" style="margin:0">'
-      +'<div style="grid-column:1/-1"><label>이 시험 교재 <span style="color:var(--ink-soft)">(이 줄에만)</span></label>'
-      +'<input id="ev" value="'+esc(edt.v!=null?edt.v:(r.it.ownBook||(r.kind==="book"?r.book:"")||""))+'" placeholder="비우면 아래 반 교재를 씁니다"></div>'
-      +'<div style="grid-column:1/-1"><label>'+esc(r.cls)+' 반 기본 교재</label>'
-      +'<input id="ev3" value="'+esc(edt.v3!=null?edt.v3:bookOf(r.cls,sel))+'" placeholder="예: 뜯어먹는 중등 1800"></div>'
-      +'<div style="grid-column:1/-1"><label>반 교재는 이 날부터 바뀜</label>'
+      +'<div style="grid-column:1/-1"><label>교재 이름</label>'
+      +'<input id="ev" value="'+esc(edt.v!=null?edt.v:rowBook(r))+'" placeholder="예: Bricks Reading Nonfiction 50-2"></div>'
+      +'<div style="grid-column:1/-1"><label>이 날부터 이 교재 <span style="color:var(--ink-soft)">(교재 바꿀 때만 날짜를 바꾸세요)</span></label>'
       +'<input type="date" id="ev2" value="'+esc(edt.v2||sel)+'"></div></div>'
-      +(hist?'<div style="margin-top:8px;font-size:11px;color:var(--ink-soft)">반 교재 기록</div>'+hist:''),
+      +(hist?'<div style="margin-top:8px;font-size:11px;color:var(--ink-soft)">지금까지 쓴 교재</div>'+hist:''),
       '교재 저장');
   }
   if(t==='del')
@@ -1229,8 +1242,9 @@ function wire(){
     render();
   });
   document.querySelectorAll('[data-bkdel]').forEach(b=>b.onclick=async()=>{
-    const [cls,d]=b.dataset.bkdel.split('|');
-    if(cfg.books&&cfg.books[cls])delete cfg.books[cls][d];
+    const [id,d]=b.dataset.bkdel.split('|');
+    const it=cfg.items.find(x=>x.id===id);
+    if(it&&it.books){ delete it.books[d]; if(!Object.keys(it.books).length)delete it.books }
     await saveCfg(); render();
   });
   document.querySelectorAll('[data-edt]').forEach(b=>b.onclick=()=>{
@@ -1270,6 +1284,11 @@ function wire(){
       if(scope==='all'){
         applyChoice(it,v,sel,text); it.sure=true;
         if(it.once){ it.wd=parse(it.once).getDay(); it.from=it.once; delete it.once }
+      }else if(scope==='hold'&&!it.once){
+        const cp={id:'k'+Date.now(),cls:it.cls,once:sel,n:it.n,sure:true,off:false};
+        applyChoice(cp,v,sel,text);
+        cfg.items.push(cp);
+        it.skip=(it.skip||[]).concat([sel]);      // 번호가 한 주 미뤄짐
       }else if(it.once){
         applyChoice(it,v,sel,text); it.sure=true;
       }else{
@@ -1286,13 +1305,11 @@ function wire(){
       edt=null; await saveCfg(); render(); toast('담임 저장'); return;
     }
     if(t==='book'){
-      const own=val.trim();
-      if(own){ if(it.kind==='book')it.book=own; else it.ownBook=own }
-      else { delete it.ownBook }
-      const cb=((document.querySelector('#ev3')||{}).value||'').trim();
       const d2=(document.querySelector('#ev2')||{}).value||sel;
-      if(cb!==bookOf(it.cls,sel)) setBook(it.cls, d2, cb);
-      edt=null; await saveCfg(); render(); toast('교재 저장'); return;
+      setItemBook(it, d2, val.trim());
+      delete it.ownBook;
+      edt=null; await saveCfg(); render();
+      toast(val.trim()? d2.slice(5).replace('-','/')+'부터 '+val.trim() : '교재 지웠어요'); return;
     }
   if(t==='del'){
       cfg.items=cfg.items.filter(x=>x.id!==it.id); edt=null; await saveCfg(); render(); return;
@@ -1430,8 +1447,7 @@ function wire(){
     if(afNote)it.note=afNote;
     if(ch.noprint)it.noprint=true;
     const bk=(afBook!=null?afBook:'').trim();
-    if(bk){ if(it.kind==='book')it.book=bk; else it.ownBook=bk;
-            if(!bookOf(c,afDate)) setBook(c, afDate, bk); }
+    if(bk) setItemBook(it, afDate, bk);
     cfg.items.push(it);
     const d=afDate; addOpen=false; await saveCfg();
     if(d!==sel){ await go(d) } else { render() }
