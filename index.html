@@ -232,7 +232,7 @@ const N={TWC:5,TPG:9,TPA:3,THA:6,TPP:10,TPV:7,TPD:7,TPC:10,THI:10,TPN:7,
   TMX:9,TMP:8,TMG:8,TMB:7,TPF:4,TP1:5,TM1:8};
 
 const SEEDV=11;
-const APP_VER='1.16';
+const APP_VER='1.17';
 
 /* 반별 명단 — 시간표에서 읽음. 틀린 이름은 아래 ROSTER에서 고치면 됩니다. */
 const HOL0=[
@@ -515,11 +515,12 @@ function resolve(it,date){
     if(it.from&&date<it.from)return null;
     if(it.skip&&it.skip.indexOf(date)>=0)return null;
     if(it.hide&&it.hide.indexOf(date)>=0)return null;
+    if(isHol(date))return null;                 // 공휴일 = 학원 쉼
   }
   const rn=roster(it.cls).length;
   const o={it,kind:it.kind,cls:it.cls,n:(it.kind==='retest'? (it.n||0) : (rn||it.n||0)),sure:it.sure!==false,note:it.note||'',label:it.label||'',book:it.book||'',src:it.src||''};
   if(it.base!=null&&it.anchor){
-    const skipped=(it.skip||[]).filter(x=>x>it.anchor&&x<date).length;
+    const skipped=(it.skip||[]).filter(x=>x>it.anchor&&x<date).length + holSkips(it,date);
     o.num=it.base+it.step*(weeksBetween(it.anchor,date)-skipped);
     o.ul=it.ul||(it.kind==='book'?'Day':'Unit');
     o.invalid=o.num<1;
@@ -867,6 +868,9 @@ function viewDay(){
   let h='<div class="total"><b>'+left+'</b><span>장 더 뽑으면 돼요'
     +(doneN?' · '+doneN+'장 뽑음':'')+' · 전체 '+sheets+'장</span></div>'
     +(sheets&&left===0?'<div class="rule" style="border-left-color:#1F7A3D;background:#EDF7EE">오늘 뽑을 거 다 뽑았어요</div>':'');
+  if(isHol(sel))h+='<div class="rule" style="border-left-color:var(--red);background:#FFF1EE">'
+    +'<b>'+esc(holName(sel)||'공휴일')+'</b> · 학원 쉬는 날이라 매주 있는 시험은 안 나와요. '
+    +'여는 날이면 달력 탭에서 이 날 공휴일 표시를 지우세요.</div>';
   if(RULES[wd])h+='<div class="rule">'+RULES[wd]+'</div>';
   h+= addOpen ? addForm() : '<div class="toolbar" style="margin:10px 0 0"><button class="btn ghost" data-once="1">＋ 시험 / 재시험 추가</button></div>';
   if(!rows.length)return h+'<div class="sec"><div class="empty">이 날은 0교시 시험이 없어요.</div></div>';
@@ -945,7 +949,8 @@ function viewWeek(){
     const ds=ymd(d), rows=forDate(ds);
     const sh=rows.filter(r=>!(r.it.noprint||r.kind==='fixed')).reduce((s,r)=>s+(r.n||0),0);
     h+='<div class="wkday'+(ds===today?' today':'')+'"><h4>'+DAYK[d.getDay()]+'<em>'+(d.getMonth()+1)+'.'+d.getDate()+'</em>'+(sh?'<i>'+sh+'장</i>':'')+'</h4>';
-    if(!rows.length)h+='<div class="wkitem f">시험 없음</div>';
+    if(isHol(ds))h+='<div class="wkitem" style="color:var(--red)">'+esc(holName(ds)||'공휴일')+' · 쉼</div>';
+    else if(!rows.length)h+='<div class="wkitem f">시험 없음</div>';
     rows.forEach(r=>{
       const c=(r.kind==='vocab'?'v':r.kind==='fixed'?'f':'a')+' '+tintOf(r);
       const t=r.kind==='retest'?(roundName(r.it.round)+' '+(r.it.rk?rkLabel(r.it.rk,r.src,r.cls):(r.src||''))):r.kind==='vocab'?((r.src||'단어')+(r.num!=null?' '+r.ul+' '+(r.invalid?'?':r.num):'')):r.kind==='each'?'각자 다름':r.kind==='blank'?'백지':r.kind==='fixed'?'자체교재'
@@ -1062,6 +1067,17 @@ function rosterSection(){
 }
 
 const d2s=d=>d.slice(5).replace('-','/');
+/* 달력에 공휴일로 표시된 날 = 학원 쉬는 날. 지우면 그날은 여는 날이 됩니다 */
+function isHol(d){ return (cfg.cal||[]).some(e=>e.type==='hol'&&e.date===d) }
+function holName(d){ const e=(cfg.cal||[]).find(x=>x.type==='hol'&&x.date===d); return e?e.text:'' }
+function holSkips(it,date){
+  if(!it.anchor||it.wd==null)return 0;
+  let d=it.anchor, g=0;
+  while(parse(d).getDay()!==it.wd && g++<7) d=shift(d,1);
+  let n=0, guard=0;
+  while(d<date && guard++<520){ if(isHol(d))n++; d=shift(d,7) }
+  return n;
+}
 function calOf(d){ return (cfg.cal||[]).filter(e=>e.date===d) }
 function viewCal(){
   const base=calMo||sel.slice(0,7);
