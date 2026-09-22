@@ -232,7 +232,7 @@ const N={TWC:5,TPG:9,TPA:3,THA:6,TPP:10,TPV:7,TPD:7,TPC:10,THI:10,TPN:7,
   TMX:9,TMP:8,TMG:8,TMB:7,TPF:4,TP1:5,TM1:8};
 
 const SEEDV=11;
-const APP_VER='1.20';
+const APP_VER='1.21';
 
 /* 반별 명단 — 시간표에서 읽음. 틀린 이름은 아래 ROSTER에서 고치면 됩니다. */
 const HOL0=[
@@ -896,12 +896,12 @@ function viewDay(){
     +(tint?'<span class="sw '+tint+'"></span>':'')+t+'</b><span>'+sub+'</span></div>'
     +(list.length?list.map(rowHTML).join(''):'<div class="empty">'+empty+'</div>')+'</div>';
   const rt=need.filter(r=>r.kind==='retest'), nd=need.filter(r=>r.kind!=='retest');
-  if(rt.length)h+=sec('재시험', '못 본 애들 · '+rt.reduce((a,r)=>a+qtyOf(r),0)+'장', rt, '없음', 't-retest');
-  h+=sec('단어', '애들이 알려줘야 함 · '+nd.reduce((a,r)=>a+qtyOf(r),0)+'장', nd, '없음', 't-vocab');
+  if(rt.length)h+=sec('재시험', rt.reduce((a,r)=>a+qtyOf(r),0)+'장', rt, '없음', 't-retest');
+  h+=sec('단어', nd.reduce((a,r)=>a+qtyOf(r),0)+'장', nd, '없음', 't-vocab');
   BOOKG.forEach(g=>{
     const list=mine.filter(r=>bookGroup(r)===g.t);
-    if(list.length)h+=sec(g.t, '그대로 뽑으면 됨 · '
-      +list.filter(r=>!entry(sel,r.it.id).pr).reduce((a,r)=>a+qtyOf(r),0)+' / '
+    if(list.length)h+=sec(g.t,
+      list.filter(r=>!entry(sel,r.it.id).pr).reduce((a,r)=>a+qtyOf(r),0)+' / '
       +list.reduce((a,r)=>a+qtyOf(r),0)+'장', list, '없음',
       g.t==='백지'?'t-blank':'t-book');
   });
