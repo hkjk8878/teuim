@@ -232,7 +232,7 @@ const N={TWC:5,TPG:9,TPA:3,THA:6,TPP:10,TPV:7,TPD:7,TPC:10,THI:10,TPN:7,
   TMX:9,TMP:8,TMG:8,TMB:7,TPF:4,TP1:5,TM1:8};
 
 const SEEDV=11;
-const APP_VER='1.21';
+const APP_VER='1.22';
 
 /* 반별 명단 — 시간표에서 읽음. 틀린 이름은 아래 ROSTER에서 고치면 됩니다. */
 const HOL0=[
@@ -761,6 +761,8 @@ function rowHTML(r){
   }
   const acts=[];
   acts.push('<button class="notebtn" data-img="'+id+'">답지 사진'+((e.imgs||[]).length?' '+e.imgs.length+'장':' 넣기')+'</button>');
+  if(r.kind==='retest')
+    acts.push('<button class="notebtn" data-edt="names|'+id+'">누가 보는지 고치기</button>');
   if(r.kind==='retest'&&(r.it.names||[]).length){
     const left=(r.it.names).filter(x=>!(e.pass||{})[x]);
     if(left.length&&left.length<r.it.names.length)
@@ -817,6 +819,19 @@ function edtPanel(r){
       +'<label>'+esc(r.cls)+' 담임선생님</label>'
       +'<input id="ev" value="'+esc(edt.v!=null?edt.v:teacherOf(r.cls))+'" placeholder="예: Daisy T"></div></div>',
       '담임 저장');
+  }
+  if(t==='names'){
+    const sel2=edt.sel||{};
+    const base=roster(r.cls), extra=(r.it.names||[]).filter(x=>base.indexOf(x)<0);
+    const all=base.concat(extra);
+    const n=Object.keys(sel2).filter(k=>sel2[k]).length;
+    return box('<div style="font-size:11px;color:var(--ink-soft);margin-bottom:6px">누르면 넣고 빼집니다 · 지금 '+n+'명</div>'
+      +'<div class="names">'
+      + all.map(nm=>'<button class="nm'+(sel2[nm]?' on':'')+'" data-nmtg="'+esc(nm)+'">'+esc(nm)+'</button>').join('')
+      + (all.length?'':'<span style="font-size:12px;color:var(--ink-soft)">명단이 없어요</span>')
+      +'</div>'
+      +'<input class="val" id="ev" value="'+esc(edt.v||'')+'" placeholder="명단에 없는 애는 여기 이름 적기 (쉼표로 여러 명)">',
+      n+'명으로 저장');
   }
   if(t==='book'){
     const hh=r.it.books||{};
@@ -1249,8 +1264,18 @@ function wire(){
   });
   document.querySelectorAll('[data-edt]').forEach(b=>b.onclick=()=>{
     const [type,id]=b.dataset.edt.split('|');
-    edt=(edt&&edt.id===id&&edt.type===type)?null:{id,type,v:null};
+    if(edt&&edt.id===id&&edt.type===type){ edt=null; rtOpen=null; render(); return }
+    edt={id,type,v:null};
+    if(type==='names'){
+      const it=cfg.items.find(x=>x.id===id), sl={};
+      (it.names||[]).forEach(x=>sl[x]=true);
+      edt.sel=sl;
+    }
     rtOpen=null; render();
+  });
+  document.querySelectorAll('[data-nmtg]').forEach(b=>b.onclick=()=>{
+    const ev=document.querySelector('#ev'); if(ev)edt.v=ev.value;
+    const k=b.dataset.nmtg; edt.sel=edt.sel||{}; edt.sel[k]=!edt.sel[k]; render();
   });
   const eno=document.querySelector('[data-eno]');
   if(eno)eno.onclick=()=>{edt=null;render()};
@@ -1278,6 +1303,13 @@ function wire(){
       if(it.skip)it.skip=it.skip.filter(x=>x>sel);
       edt=null; await saveCfg(); render(); toast('번호를 다시 맞췄어요'); return;
     }
+    if(t==='names'){
+      const picked=Object.keys(edt.sel||{}).filter(k=>edt.sel[k]);
+      const extra=(val||'').split(/[,·\/\n]/).map(x=>x.trim()).filter(Boolean);
+      const names=picked.concat(extra.filter(x=>picked.indexOf(x)<0));
+      it.names=names; it.n=names.length||1;
+      edt=null; await saveCfg(); render(); toast(names.length+'명으로 바꿨어요'); return;
+    }
     if(t==='kind'){
       const v=val, text=((document.querySelector('#ev2')||{}).value||'').trim();
       const scope=(document.querySelector('#ev3')||{}).value||'one';
@@ -1304,7 +1336,20 @@ function wire(){
       if(val.trim())cfg.teachers[it.cls]=val.trim(); else delete cfg.teachers[it.cls];
       edt=null; await saveCfg(); render(); toast('담임 저장'); return;
     }
-    if(t==='book'){
+    if(t==='names'){
+    const sel2=edt.sel||{};
+    const base=roster(r.cls), extra=(r.it.names||[]).filter(x=>base.indexOf(x)<0);
+    const all=base.concat(extra);
+    const n=Object.keys(sel2).filter(k=>sel2[k]).length;
+    return box('<div style="font-size:11px;color:var(--ink-soft);margin-bottom:6px">누르면 넣고 빼집니다 · 지금 '+n+'명</div>'
+      +'<div class="names">'
+      + all.map(nm=>'<button class="nm'+(sel2[nm]?' on':'')+'" data-nmtg="'+esc(nm)+'">'+esc(nm)+'</button>').join('')
+      + (all.length?'':'<span style="font-size:12px;color:var(--ink-soft)">명단이 없어요</span>')
+      +'</div>'
+      +'<input class="val" id="ev" value="'+esc(edt.v||'')+'" placeholder="명단에 없는 애는 여기 이름 적기 (쉼표로 여러 명)">',
+      n+'명으로 저장');
+  }
+  if(t==='book'){
       const d2=(document.querySelector('#ev2')||{}).value||sel;
       setItemBook(it, d2, val.trim());
       delete it.ownBook;
