@@ -239,7 +239,7 @@ const N={TWC:5,TPG:9,TPA:3,THA:6,TPP:10,TPV:7,TPD:7,TPC:10,THI:10,TPN:7,
   TMX:9,TMP:8,TMG:8,TMB:7,TPF:4,TP1:5,TM1:8};
 
 const SEEDV=11;
-const APP_VER='1.24';
+const APP_VER='1.25';
 
 /* 반별 명단 — 시간표에서 읽음. 틀린 이름은 아래 ROSTER에서 고치면 됩니다. */
 const HOL0=[
@@ -514,7 +514,7 @@ function lastVal(id,before){
   return best;
 }
 
-function resolve(it,date){
+function resolve(it,date,ignoreHol){
   if(it.off)return null;
   if(it.once){ if(it.once!==date)return null; }
   else{
@@ -522,7 +522,7 @@ function resolve(it,date){
     if(it.from&&date<it.from)return null;
     if(it.skip&&it.skip.indexOf(date)>=0)return null;
     if(it.hide&&it.hide.indexOf(date)>=0)return null;
-    if(isHol(date))return null;                 // 공휴일 = 학원 쉼
+    if(isHol(date)&&!ignoreHol)return null;     // 공휴일 = 학원 쉼
   }
   const rn=roster(it.cls).length;
   const ib=bookOfItem(it,date);
@@ -928,6 +928,25 @@ function viewDay(){
       g.t==='백지'?'t-blank':'t-book');
   });
   h+=sec('자체교재', '뽑지 말고 Day만 적어주기', self, '없음', 't-self');
+  if(isHol(sel)){
+    const off=cfg.items.map(i=>resolve(i,sel,true)).filter(Boolean)
+      .filter(r=>!r.it.once&&!(r.it.did||[]).includes(sel))
+      .sort((a,b)=>rank(a)-rank(b)||cidx(a.cls)-cidx(b.cls));
+    if(off.length){
+      h+='<div class="sec"><div class="sec-h"><b>쉬는 날이라 빠진 시험</b>'
+       +'<span>다른 날에 보려면 옮기세요</span></div>';
+      off.forEach(r=>{
+        h+='<div class="row fixed" style="opacity:.75"><div class="top">'
+         +'<div class="code">'+esc(r.cls)+'</div>'
+         +'<div style="margin-left:auto;font-size:12px;color:var(--ink-soft)">'+(r.n||0)+'명</div></div>'
+         +'<div class="what" style="color:var(--ink-soft)">'+content(r)+'</div>'
+         +'<div class="acts"><button class="notebtn" data-edt="move|'+r.it.id+'">다른 날로 옮기기</button></div>'
+         +(edt&&edt.id===r.it.id?edtPanel(r):'')
+         +'</div>';
+      });
+      h+='</div>';
+    }
+  }
   return h;
 }
 
@@ -1117,7 +1136,8 @@ function holSkips(it,date){
   let d=it.anchor, g=0;
   while(parse(d).getDay()!==it.wd && g++<7) d=shift(d,1);
   let n=0, guard=0;
-  while(d<date && guard++<520){ if(isHol(d))n++; d=shift(d,7) }
+  const did=it.did||[];
+  while(d<date && guard++<520){ if(isHol(d)&&did.indexOf(d)<0)n++; d=shift(d,7) }
   return n;
 }
 function calOf(d){ return (cfg.cal||[]).filter(e=>e.date===d) }
@@ -1341,7 +1361,8 @@ function wire(){
         const cp={id:'k'+Date.now(),cls:it.cls,once:sel,n:it.n,sure:true,off:false};
         applyChoice(cp,v,sel,text);
         cfg.items.push(cp);
-        it.hide=(it.hide||[]).concat([sel]);
+        if(isHol(sel)) it.did=(it.did||[]).concat([sel]);   // 쉬는 날 몫을 옮겨서 본 것
+        else it.hide=(it.hide||[]).concat([sel]);
       }
       edt=null; await saveCfg(); render(); toast('바꿨어요'); return;
     }
@@ -1389,7 +1410,8 @@ function wire(){
         cp.id=newId='m'+Date.now(); cp.once=when;
         if(r&&r.num!=null){ cp.base=r.num; cp.anchor=when; }
         cfg.items.push(cp);
-        it.hide=(it.hide||[]).concat([sel]);
+        if(isHol(sel)) it.did=(it.did||[]).concat([sel]);   // 쉬는 날 몫을 옮겨서 본 것
+        else it.hide=(it.hide||[]).concat([sel]);
       }
       const from=logs[mo], e=from&&from[sel]&&from[sel][it.id];
       if(e){
