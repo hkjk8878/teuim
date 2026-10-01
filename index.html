@@ -239,7 +239,7 @@ const N={TWC:5,TPG:9,TPA:3,THA:6,TPP:10,TPV:7,TPD:7,TPC:10,THI:10,TPN:7,
   TMX:9,TMP:8,TMG:8,TMB:7,TPF:4,TP1:5,TM1:8};
 
 const SEEDV=11;
-const APP_VER='1.25';
+const APP_VER='1.30';
 
 /* 반별 명단 — 시간표에서 읽음. 틀린 이름은 아래 ROSTER에서 고치면 됩니다. */
 const HOL0=[
@@ -778,11 +778,12 @@ function rowHTML(r){
   if(r.num!=null)acts.push('<button class="notebtn" data-edt="num|'+id+'">'+r.ul+' 번호 고치기</button>');
   acts.push('<button class="notebtn'+(e.note?' has':'')+'" data-open="'+id+'">'+(e.note?'특이사항 있음':'특이사항 적기')+'</button>');
   acts.push('<button class="notebtn" data-rt="'+id+'">재시험 잡기</button>');
-  acts.push('<button class="notebtn" data-edt="kind|'+id+'">종류 바꾸기</button>');
-  acts.push('<button class="notebtn" data-edt="move|'+id+'">다른 날로 옮기기</button>');
   acts.push(r.it.once
-    ? '<button class="notebtn" data-edt="del|'+id+'">이 시험 지우기</button>'
-    : '<button class="notebtn" data-edt="skip|'+id+'">이 날은 건너뛰기</button>');
+    ? '<button class="notebtn" data-edt="move|'+id+'">날짜 바꾸기</button>'
+    : '<button class="notebtn" data-edt="off|'+id+'">오늘 시험 X</button>');
+  acts.push('<button class="notebtn" data-edt="kind|'+id+'">종류 바꾸기</button>');
+  acts.push('<button class="notebtn" data-edt="del|'+id+'">'
+    +(r.it.once?'이 시험 지우기':'매주 없애기')+'</button>');
   h+='<div class="acts">'+acts.join('')+'</div>';
   if(edt&&edt.id===id)h+=edtPanel(r);
   if(rtOpen===id)h+=rtPanel(r);
@@ -814,9 +815,9 @@ function edtPanel(r){
         +CHOICES.map(x=>'<option value="'+x.v+'"'+(cur===x.v?' selected':'')+'>'+x.t+'</option>').join('')
         +'</select></div>'
       +'<div><label>적용</label><select id="ev3">'
-        +'<option value="one"'+(edt.v3==='one'||!edt.v3?' selected':'')+'>이 날만</option>'
-        +'<option value="hold"'+(edt.v3==='hold'?' selected':'')+'>이 날만 · 교재 번호는 다음으로 미룸</option>'
-        +'<option value="all"'+(edt.v3==='all'?' selected':'')+'>이 날부터 매주 계속</option></select></div>'
+        +'<option value="hold"'+(edt.v3==='hold'||!edt.v3?' selected':'')+'>오늘만 · 원래 건 다음으로 미룸</option>'
+        +'<option value="one"'+(edt.v3==='one'?' selected':'')+'>오늘만 · 원래 건 그냥 넘김</option>'
+        +'<option value="all"'+(edt.v3==='all'?' selected':'')+'>오늘부터 매주 계속</option></select></div>'
       +'<div style="grid-column:1/-1"><label>'+(c.book||cur==='self'?'어디까지 (예: Day 5)':'범위 / 내용')+'</label>'
       +'<input id="ev2" value="'+esc(edt.v2||'')+'" placeholder="비워도 돼요"></div></div>',
       '바꾸기');
@@ -855,10 +856,34 @@ function edtPanel(r){
       '교재 저장');
   }
   if(t==='del')
-    return box('<div style="font-size:13px">이 시험을 지울까요?</div>', '지우기');
-  if(t==='skip')
-    return box('<div style="font-size:13px">이 날은 이 시험을 안 보는 걸로 할까요?<br>'
-      +'<span style="color:var(--ink-soft)">교재 Day가 한 주 밀립니다. 날짜만 바꾸는 거면 「다른 날로 옮기기」를 쓰세요.</span></div>', '건너뛰기');
+    return box('<div style="font-size:13px">'
+      +(r.it.once
+        ? '이 시험을 지울까요?'
+        : '<b>'+esc(r.cls)+'</b> 이 시험이 <b>매주 목록에서 아예 없어집니다.</b><br>'
+          +'<span style="color:var(--ink-soft)">오늘 하루만 안 보는 거면 「이 날만 빼기」를 쓰세요.</span>')
+      +'</div>', r.it.once?'지우기':'매주 없애기');
+  if(t==='off'){
+    const lab=r.num!=null?((r.ul||'Day')+' '+r.num):'오늘 볼 것';
+    const v=edt.v||'next';
+    return box('<div style="font-size:13px;margin-bottom:8px">오늘 <b>'+esc(r.cls)+'</b> 시험을 안 봅니다.<br>'
+      +'그럼 '+esc(lab)+'은 언제 보나요?</div>'
+      +'<div class="fields" style="margin:0"><div style="grid-column:1/-1"><select id="ev">'
+      +'<option value="next"'+(v==='next'?' selected':'')+'>다음 번에 (다음 주 같은 요일)</option>'
+      +'<option value="date"'+(v==='date'?' selected':'')+'>다른 날에 — 날짜 고르기</option>'
+      +'<option value="none"'+(v==='none'?' selected':'')+'>안 봄 (그냥 넘기기)</option>'
+      +'</select></div>'
+      +(v==='date'?'<div style="grid-column:1/-1"><label>언제 볼까요</label>'
+        +'<input type="date" id="ev2" value="'+esc(edt.v2||shift(sel,1))+'"></div>':'')
+      +'</div>', '이렇게 하기');
+  }
+  if(t==='skip'){
+    const lab=r.num!=null?((r.ul||'Day')+' '+r.num):'오늘 볼 것';
+    return box('<div style="font-size:13px;margin-bottom:8px">오늘 이 시험을 안 봅니다. '+esc(lab)+'은 어떻게 할까요?</div>'
+      +'<div class="fields" style="margin:0"><div style="grid-column:1/-1"><select id="ev">'
+      +'<option value="hold"'+(edt.v==='pass'?'':' selected')+'>다음 번에 이어서 보기 (미룸)</option>'
+      +'<option value="pass"'+(edt.v==='pass'?' selected':'')+'>그냥 넘기기 (안 봄)</option>'
+      +'</select></div></div>', '오늘 시험 빼기');
+  }
   return '';
 }
 
@@ -1314,6 +1339,11 @@ function wire(){
   const eno=document.querySelector('[data-eno]');
   if(eno)eno.onclick=()=>{edt=null;render()};
   const evsel=document.querySelector('#ev');
+  if(evsel&&edt&&edt.type==='off')evsel.onchange=()=>{
+    edt.v=evsel.value;
+    edt.v2=(document.querySelector('#ev2')||{}).value||'';
+    render();
+  };
   if(evsel&&edt&&edt.type==='kind')evsel.onchange=()=>{
     edt.v=evsel.value;
     edt.v2=(document.querySelector('#ev2')||{}).value||'';
@@ -1332,21 +1362,32 @@ function wire(){
     }
     if(t==='num'){
       const n=parseInt(val,10); if(isNaN(n)){toast('숫자를 넣어주세요');return}
-      const sk=(it.skip||[]).filter(x=>x>it.anchor&&x<sel).length;
       it.anchor=sel; it.base=n; it.sure=true;
       if(it.skip)it.skip=it.skip.filter(x=>x>sel);
       edt=null; await saveCfg(); render(); toast('번호를 다시 맞췄어요'); return;
     }
     if(t==='names'){
       const picked=Object.keys(edt.sel||{}).filter(k=>edt.sel[k]);
-      const extra=(val||'').split(/[,·\/\n]/).map(x=>x.trim()).filter(Boolean);
+      const extra=(val||'').split(/[,\u00b7\/\n]/).map(x=>x.trim()).filter(Boolean);
       const names=picked.concat(extra.filter(x=>picked.indexOf(x)<0));
       it.names=names; it.n=names.length||1;
       edt=null; await saveCfg(); render(); toast(names.length+'명으로 바꿨어요'); return;
     }
+    if(t==='tch'){
+      cfg.teachers=cfg.teachers||{};
+      if(val.trim())cfg.teachers[it.cls]=val.trim(); else delete cfg.teachers[it.cls];
+      edt=null; await saveCfg(); render(); toast('담임 저장'); return;
+    }
+    if(t==='book'){
+      const d2=(document.querySelector('#ev2')||{}).value||sel;
+      setItemBook(it, d2, val.trim());
+      delete it.ownBook;
+      edt=null; await saveCfg(); render();
+      toast(val.trim()? d2.slice(5).replace('-','/')+'부터 '+val.trim() : '교재 지웠어요'); return;
+    }
     if(t==='kind'){
       const v=val, text=((document.querySelector('#ev2')||{}).value||'').trim();
-      const scope=(document.querySelector('#ev3')||{}).value||'one';
+      const scope=(document.querySelector('#ev3')||{}).value||'hold';
       if(scope==='all'){
         applyChoice(it,v,sel,text); it.sure=true;
         if(it.once){ it.wd=parse(it.once).getDay(); it.from=it.once; delete it.once }
@@ -1354,75 +1395,54 @@ function wire(){
         const cp={id:'k'+Date.now(),cls:it.cls,once:sel,n:it.n,sure:true,off:false};
         applyChoice(cp,v,sel,text);
         cfg.items.push(cp);
-        it.skip=(it.skip||[]).concat([sel]);      // 번호가 한 주 미뤄짐
+        it.skip=(it.skip||[]).concat([sel]);
       }else if(it.once){
         applyChoice(it,v,sel,text); it.sure=true;
       }else{
         const cp={id:'k'+Date.now(),cls:it.cls,once:sel,n:it.n,sure:true,off:false};
         applyChoice(cp,v,sel,text);
         cfg.items.push(cp);
-        if(isHol(sel)) it.did=(it.did||[]).concat([sel]);   // 쉬는 날 몫을 옮겨서 본 것
-        else it.hide=(it.hide||[]).concat([sel]);
+        it.hide=(it.hide||[]).concat([sel]);
       }
       edt=null; await saveCfg(); render(); toast('바꿨어요'); return;
     }
-    if(t==='tch'){
-      cfg.teachers=cfg.teachers||{};
-      if(val.trim())cfg.teachers[it.cls]=val.trim(); else delete cfg.teachers[it.cls];
-      edt=null; await saveCfg(); render(); toast('담임 저장'); return;
-    }
-    if(t==='names'){
-    const sel2=edt.sel||{};
-    const base=roster(r.cls), extra=(r.it.names||[]).filter(x=>base.indexOf(x)<0);
-    const all=base.concat(extra);
-    const n=Object.keys(sel2).filter(k=>sel2[k]).length;
-    return box('<div style="font-size:11px;color:var(--ink-soft);margin-bottom:6px">누르면 넣고 빼집니다 · 지금 '+n+'명</div>'
-      +'<div class="names">'
-      + all.map(nm=>'<button class="nm'+(sel2[nm]?' on':'')+'" data-nmtg="'+esc(nm)+'">'+esc(nm)+'</button>').join('')
-      + (all.length?'':'<span style="font-size:12px;color:var(--ink-soft)">명단이 없어요</span>')
-      +'</div>'
-      +'<input class="val" id="ev" value="'+esc(edt.v||'')+'" placeholder="명단에 없는 애는 여기 이름 적기 (쉼표로 여러 명)">',
-      n+'명으로 저장');
-  }
-  if(t==='book'){
-      const d2=(document.querySelector('#ev2')||{}).value||sel;
-      setItemBook(it, d2, val.trim());
-      delete it.ownBook;
-      edt=null; await saveCfg(); render();
-      toast(val.trim()? d2.slice(5).replace('-','/')+'부터 '+val.trim() : '교재 지웠어요'); return;
-    }
-  if(t==='del'){
+    if(t==='del'){
       cfg.items=cfg.items.filter(x=>x.id!==it.id); edt=null; await saveCfg(); render(); return;
     }
-    if(t==='skip'){
-      it.skip=(it.skip||[]).concat([sel]); edt=null; await saveCfg(); render(); toast('건너뛰었어요'); return;
-    }
-    if(t==='move'){
-      const when=val;
-      if(!when){toast('날짜를 골라주세요');return}
-      if(when===sel){toast('같은 날이에요');return}
-      let newId=it.id;
-      if(it.once){ it.once=when; }
+    if(t==='off'||t==='move'){
+      const how = t==='move' ? 'date' : (val||'next');
+      if(how==='next'){ it.skip=(it.skip||[]).concat([sel]); }
+      else if(how==='none'){ it.hide=(it.hide||[]).concat([sel]); }
       else{
-        const r=resolve(it,sel);
-        const cp=Object.assign({},it);
-        delete cp.wd; delete cp.from; delete cp.skip; delete cp.hide;
-        cp.id=newId='m'+Date.now(); cp.once=when;
-        if(r&&r.num!=null){ cp.base=r.num; cp.anchor=when; }
-        cfg.items.push(cp);
-        if(isHol(sel)) it.did=(it.did||[]).concat([sel]);   // 쉬는 날 몫을 옮겨서 본 것
-        else it.hide=(it.hide||[]).concat([sel]);
+        const when=(document.querySelector(t==='move'?'#ev':'#ev2')||{}).value;
+        if(!when){toast('날짜를 골라주세요');return}
+        if(when===sel){toast('같은 날이에요');return}
+        let newId=it.id;
+        if(it.once){ it.once=when; }
+        else{
+          const rr=resolve(it,sel,true);
+          const cp=Object.assign({},it);
+          delete cp.wd; delete cp.from; delete cp.skip; delete cp.hide; delete cp.did;
+          cp.id=newId='m'+Date.now(); cp.once=when;
+          if(rr&&rr.num!=null){ cp.base=rr.num; cp.anchor=when }
+          cfg.items.push(cp);
+          if(isHol(sel)) it.did=(it.did||[]).concat([sel]);
+          else it.hide=(it.hide||[]).concat([sel]);
+        }
+        const from=logs[mo], e2=from&&from[sel]&&from[sel][it.id];
+        if(e2){
+          await loadLog(when.slice(0,7));
+          const m2=when.slice(0,7);
+          logs[m2][when]=logs[m2][when]||{};
+          logs[m2][when][newId]=e2;
+          delete from[sel][it.id];
+          await saveLog(m2);
+        }
+        edt=null; await saveCfg(); await go(when);
+        toast(when.slice(5).replace('-','/')+'로 옮겼어요'); return;
       }
-      const from=logs[mo], e=from&&from[sel]&&from[sel][it.id];
-      if(e){
-        await loadLog(when.slice(0,7));
-        const m2=when.slice(0,7);
-        logs[m2][when]=logs[m2][when]||{};
-        logs[m2][when][newId]=e;
-        delete from[sel][it.id];
-        await saveLog(m2);
-      }
-      edt=null; await saveCfg(); await go(when); toast(when.slice(5)+'로 옮겼어요'); return;
+      edt=null; await saveCfg(); render();
+      toast(how==='next'?'다음 번으로 미뤘어요':'그냥 넘겼어요'); return;
     }
   };
   document.querySelectorAll('[data-img]').forEach(b=>b.onclick=()=>{
