@@ -239,7 +239,7 @@ const N={TWC:5,TPG:9,TPA:3,THA:6,TPP:10,TPV:7,TPD:7,TPC:10,THI:10,TPN:7,
   TMX:9,TMP:8,TMG:8,TMB:7,TPF:4,TP1:5,TM1:8};
 
 const SEEDV=11;
-const APP_VER='1.33';
+const APP_VER='1.35';
 
 /* 반별 명단 — 시간표에서 읽음. 틀린 이름은 아래 ROSTER에서 고치면 됩니다. */
 const HOL0=[
@@ -523,6 +523,7 @@ function resolve(it,date,ignoreHol){
     if(it.skip&&it.skip.indexOf(date)>=0)return null;
     if(it.hide&&it.hide.indexOf(date)>=0)return null;
     if(isHol(date)&&!ignoreHol)return null;     // 공휴일 = 학원 쉼
+    if(it.anchor&&it.base!=null&&date<it.anchor)return null;  // 번호 세는 기준 날 = 시작하는 날
   }
   const rn=roster(it.cls).length;
   const ib=bookOfItem(it,date);
@@ -1369,8 +1370,10 @@ function wire(){
     }
     if(t==='num'){
       const n=parseInt(val,10); if(isNaN(n)){toast('숫자를 넣어주세요');return}
-      it.anchor=sel; it.base=n; it.sure=true;
-      if(it.skip)it.skip=it.skip.filter(x=>x>sel);
+      const rr=resolve(it,sel,true);
+      if(rr&&rr.num!=null) it.base += (n - rr.num);   // 기준 날은 그대로, 번호만 통째로 이동
+      else { it.anchor=sel; it.base=n }
+      it.sure=true;
       edt=null; await saveCfg(); render(); toast('번호를 다시 맞췄어요'); return;
     }
     if(t==='names'){
