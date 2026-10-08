@@ -239,7 +239,7 @@ const N={TWC:5,TPG:9,TPA:3,THA:6,TPP:10,TPV:7,TPD:7,TPC:10,THI:10,TPN:7,
   TMX:9,TMP:8,TMG:8,TMB:7,TPF:4,TP1:5,TM1:8};
 
 const SEEDV=11;
-const APP_VER='1.35';
+const APP_VER='1.37';
 
 /* 반별 명단 — 시간표에서 읽음. 틀린 이름은 아래 ROSTER에서 고치면 됩니다. */
 const HOL0=[
@@ -527,7 +527,7 @@ function resolve(it,date,ignoreHol){
   }
   const rn=roster(it.cls).length;
   const ib=bookOfItem(it,date);
-  const o={it,kind:it.kind,cls:it.cls,n:(it.kind==='retest'? (it.n||0) : (rn||it.n||0)),sure:it.sure!==false,note:it.note||'',label:it.label||'',book:(ib||it.book||''),src:it.src||''};
+  const o={it,kind:it.kind,cls:it.cls,n:((it.kind==='retest'||it.nFix)? (it.n||0) : (rn||it.n||0)),sure:it.sure!==false,note:it.note||'',label:it.label||'',book:(ib||it.book||''),src:it.src||''};
   if(it.base!=null&&it.anchor){
     const skipped=(it.skip||[]).filter(x=>x>it.anchor&&x<date).length + holSkips(it,date);
     o.num=it.base+it.step*(weeksBetween(it.anchor,date)-skipped);
@@ -742,7 +742,8 @@ function rowHTML(r){
     : '<button class="qty" data-edt="qty|'+id+'" style="opacity:.55">'+q+'명</button>';
   h+='</div><div class="what">'+content(r)+'</div>';
   if(r.it.once)h+='<div class="meta">이 날만</div>';
-  if(r.note)h+='<div class="meta">'+esc(r.note)+'</div>';
+  if(r.note)h+='<div class="meta" style="color:var(--red)">'+esc(r.note)+'</div>';
+  if(e.note)h+='<div class="meta" style="color:var(--red)">'+d2s(sel)+' · '+esc(e.note)+'</div>';
   if(!r.sure)h+='<div class="meta warn">확인 필요</div>';
   if(r.invalid)h+='<div class="meta warn">Day가 1보다 작아요. 번호를 고쳐주세요.</div>';
 
@@ -777,7 +778,8 @@ function rowHTML(r){
       acts.push('<button class="notebtn" data-next="'+id+'">남은 '+left.length+'명 '+roundName((r.it.round||1)+1)+' 잡기</button>');
   }
   if(r.num!=null)acts.push('<button class="notebtn" data-edt="num|'+id+'">'+r.ul+' 번호 고치기</button>');
-  acts.push('<button class="notebtn'+(e.note?' has':'')+'" data-open="'+id+'">'+(e.note?'특이사항 있음':'특이사항 적기')+'</button>');
+  acts.push('<button class="notebtn'+((e.note||r.it.note)?' has':'')+'" data-edt="note|'+id+'">'
+    +((e.note||r.it.note)?'특이사항 있음':'특이사항 적기')+'</button>');
   acts.push('<button class="notebtn" data-rt="'+id+'">재시험 잡기</button>');
   acts.push(r.it.once
     ? '<button class="notebtn" data-edt="move|'+id+'">날짜 바꾸기</button>'
@@ -788,8 +790,7 @@ function rowHTML(r){
   h+='<div class="acts">'+acts.join('')+'</div>';
   if(edt&&edt.id===id)h+=edtPanel(r);
   if(rtOpen===id)h+=rtPanel(r);
-  if(open[id]||e.note)
-    h+='<textarea class="memo" data-note="'+id+'" placeholder="결석 / 시험 안 봄 / 재시험 대상 / 지난주 못 본 애">'+esc(e.note||'')+'</textarea>';
+
   return h+'</div>';
 }
 
@@ -828,6 +829,15 @@ function edtPanel(r){
       +'<label>'+esc(r.cls)+' 담임선생님</label>'
       +'<input id="ev" value="'+esc(edt.v!=null?edt.v:teacherOf(r.cls))+'" placeholder="예: Daisy T"></div></div>',
       '담임 저장');
+  }
+  if(t==='note'){
+    const e2=entry(sel,r.it.id);
+    return box('<div class="fields" style="margin:0">'
+      +'<div style="grid-column:1/-1"><label>늘 보이게 <span style="color:var(--ink-soft)">(매번 이 시험에 따라다님)</span></label>'
+      +'<textarea class="memo" id="ev2" style="margin-top:0" placeholder="예: 김민준은 이 시험 안 봄">'+esc(r.it.note||'')+'</textarea></div>'
+      +'<div style="grid-column:1/-1"><label>이 날만 <span style="color:var(--ink-soft)">('+d2s(sel)+' 에만)</span></label>'
+      +'<textarea class="memo" id="ev" style="margin-top:0" placeholder="예: 오늘 이서연 결석">'+esc(e2.note||'')+'</textarea></div>'
+      +'</div>', '저장');
   }
   if(t==='names'){
     const sel2=edt.sel||{};
@@ -1067,9 +1077,11 @@ function itemFields(it){
      +'<option value="__new">새 반 직접 넣기…</option></select>'
      +(allClasses().indexOf(it.cls)<0?'<input data-k="cls" data-id="'+it.id+'" value="'+esc(it.cls)+'" style="margin-top:4px" placeholder="반 이름">':'')
      +'</div>'
-   +(roster(it.cls).length
-      ? '<div><label>인원</label><input value="'+roster(it.cls).length+'명 (명단에서 자동)" disabled style="color:var(--ink-soft)"></div>'
-      : f('n','인원','number'))
+   +'<div><label>인원</label><select data-k="nFix" data-id="'+it.id+'">'
+     +'<option value=""'+(it.nFix?'':' selected')+'>명단에서 자동 ('+(roster(it.cls).length||0)+'명)</option>'
+     +'<option value="1"'+(it.nFix?' selected':'')+'>직접 정하기</option></select>'
+     +(it.nFix?'<input type="number" data-k="n" data-id="'+it.id+'" value="'+(it.n||0)+'" style="margin-top:4px">':'')
+     +'</div>'
    +'<div><label>종류</label><select data-k="choice" data-id="'+it.id+'">'
      +CHOICES.map(c=>'<option value="'+c.v+'"'+(vOf(it)===c.v?' selected':'')+'>'+c.t+'</option>').join('')
      +'</select></div>'
@@ -1268,7 +1280,7 @@ function viewSet(){
   for(let w=1;w<=5;w++){
     const list=act.filter(i=>!i.once&&i.wd===w).sort((a,b)=>cidx(a.cls)-cidx(b.cls)||a.cls.localeCompare(b.cls));
     const sheets=list.filter(i=>!i.off&&!(i.noprint||i.kind==='fixed'))
-      .reduce((a,i)=>a+(i.kind==='retest'?(i.n||0):(roster(i.cls).length||i.n||0)),0);
+      .reduce((a,i)=>a+((i.kind==='retest'||i.nFix)?(i.n||0):(roster(i.cls).length||i.n||0)),0);
     const op=!!dayOpen[w];
     h+='<div class="grp"><h3 data-sec="d'+w+'" style="cursor:pointer">'+(op?'▾':'▸')+' '+DAYK[w]+'요일 '
       +'<span style="font-weight:500;color:var(--ink-soft)">'+list.length+'개 · '+sheets+'장</span>'
@@ -1375,6 +1387,12 @@ function wire(){
       else { it.anchor=sel; it.base=n }
       it.sure=true;
       edt=null; await saveCfg(); render(); toast('번호를 다시 맞췄어요'); return;
+    }
+    if(t==='note'){
+      entry(sel,it.id).note=val;
+      const nt=((document.querySelector('#ev2')||{}).value||'').trim();
+      if(nt)it.note=nt; else delete it.note;
+      edt=null; await saveCfg(); await saveLog(mo); render(); toast('저장'); return;
     }
     if(t==='names'){
       const picked=Object.keys(edt.sel||{}).filter(k=>edt.sel[k]);
@@ -1566,6 +1584,11 @@ function wire(){
   };
   document.querySelectorAll('[data-k]').forEach(el=>el.onchange=async()=>{
     const it=cfg.items.find(x=>x.id===el.dataset.id), k=el.dataset.k;
+    if(k==='nFix'){
+      if(el.value){ it.nFix=true; if(!it.n)it.n=roster(it.cls).length||0 }
+      else { delete it.nFix }
+      await saveCfg(); render(); return;
+    }
     if(k==='choice'){
       applyChoice(it, el.value, it.anchor||sel, '', true);
       it.sure=true; await saveCfg(); render(); return;
