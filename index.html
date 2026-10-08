@@ -239,7 +239,7 @@ const N={TWC:5,TPG:9,TPA:3,THA:6,TPP:10,TPV:7,TPD:7,TPC:10,THI:10,TPN:7,
   TMX:9,TMP:8,TMG:8,TMB:7,TPF:4,TP1:5,TM1:8};
 
 const SEEDV=11;
-const APP_VER='1.31';
+const APP_VER='1.33';
 
 /* 반별 명단 — 시간표에서 읽음. 틀린 이름은 아래 ROSTER에서 고치면 됩니다. */
 const HOL0=[
@@ -1078,11 +1078,14 @@ function itemFields(it){
    +(it.once? f('once','그 날짜','date')
       :'<div><label>매주 요일</label><select data-k="wd" data-id="'+it.id+'">'
         +[1,2,3,4,5].map(w=>'<option value="'+w+'"'+(it.wd===w?' selected':'')+'>'+DAYK[w]+'요일</option>').join('')+'</select></div>')
-   +((it.kind==='vocab'||it.kind==='each'||it.kind==='blank')?f('src','어디서 나오는지','text'):'')
+   +(it.kind==='blank'?f('src','기본 내용 (예: 품사)','text'):'')
+   +(it.kind==='each'?f('src','제목','text'):'')
    +(it.kind==='set'?f('label','내용','text'):'')
    +(it.kind==='manual'?f('book','교재','text'):'')
-   +(it.kind==='book'?'':'<div style="grid-column:1/-1"><label>이 시험 교재 <span style="color:var(--ink-soft)">(비우면 반 교재)</span></label>'
-       +'<input data-k="ownBook" data-id="'+it.id+'" value="'+esc(it.ownBook||'')+'" placeholder="'+esc(bookOf(it.cls,sel)||'예: Bricks Reading1')+'"></div>')
+   +(it.kind==='book'?'':'<div style="grid-column:1/-1"><label>교재</label>'
+       +'<input data-k="ownBook" data-id="'+it.id+'" value="'+esc(it.ownBook||bookOfItem(it,sel)||'')+'" placeholder="예: Bricks Reading1"></div>'
+       +'<div style="grid-column:1/-1;font-size:11px;color:var(--ink-soft);margin-top:-2px">'
+       +'교재를 바꾸면 지난 날짜까지 같이 바뀝니다. 지난 기록을 남기려면 그날 시험 화면에서 반 이름 옆을 눌러 바꾸세요.</div>')
    +(numbered? (it.kind==='book'
         ? '<div style="grid-column:1/-1"><label>교재</label>'
           +'<input value="'+esc(bookOfItem(it,sel)||it.book||'')+'" disabled style="color:var(--ink-soft)">'
@@ -1092,7 +1095,6 @@ function itemFields(it){
        +f('anchor','번호 세는 기준 날','date')+f('base','그 날의 번호','number')
        +'<div><label>주마다</label><select data-k="step" data-id="'+it.id+'"><option value="1"'+(it.step===1?' selected':'')+'>+1 (올라감)</option><option value="-1"'+(it.step===-1?' selected':'')+'>-1 (내려감)</option></select></div>'
        +f('fmt','쓰는 방식','text') : '')
-   +(it.once?'':f('from','이 시험 시작한 날','date'))
    +f('note','메모','text')
    +'</div><div class="toolbar">'
    +'<button class="mini" data-off="'+it.id+'">'+(it.off?'다시 보게 하기':'이 시험 안 보기')+'</button>'
