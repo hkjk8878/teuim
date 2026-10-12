@@ -94,7 +94,9 @@
   .nm.ok{background:#1F7A3D;color:#fff;border-color:#1F7A3D}
   .nm.danger{background:#FFE1DB;color:var(--red);border-color:var(--red)}
   .nmrow{display:flex;align-items:center;gap:5px;margin-bottom:5px}
-  .nmrow input{flex:1;font-family:inherit;font-size:14px;padding:6px 8px;
+  .nmrow .mv{flex:0 0 106px;font-family:inherit;font-size:12px;padding:6px 4px;
+    border:1px solid var(--grid);border-radius:3px;background:#fff;color:var(--ink-soft)}
+  .nmrow input{flex:1;min-width:0;font-family:inherit;font-size:14px;padding:6px 8px;
     border:1px solid var(--grid);border-radius:3px;background:#fff;color:var(--ink)}
   .ar{width:32px;height:32px;flex:0 0 32px;font-family:inherit;font-size:12px;
     border:1px solid var(--grid);border-radius:3px;background:#fff;color:var(--ink-soft);cursor:pointer;padding:0}
@@ -239,7 +241,7 @@ const N={TWC:5,TPG:9,TPA:3,THA:6,TPP:10,TPV:7,TPD:7,TPC:10,THI:10,TPN:7,
   TMX:9,TMP:8,TMG:8,TMB:7,TPF:4,TP1:5,TM1:8};
 
 const SEEDV=11;
-const APP_VER='1.37';
+const APP_VER='1.39';
 
 /* 반별 명단 — 시간표에서 읽음. 틀린 이름은 아래 ROSTER에서 고치면 됩니다. */
 const HOL0=[
@@ -403,7 +405,7 @@ function seed(){
 const RULES={};
 
 let cfg=seed(), logs={}, sel=null, tab='day', memory=false, open={}, addOpen=false, editing={};
-let rosOpen=null, dayOpen={}, rosSecOpen=false;
+let rosOpen=null, dayOpen={}, rosSecOpen=false, rosNew=null;
 let calMo=null, calDay=null, calAdd=null, calEdit=null;  // calAdd={start,end,ty,tx}
 let rtOpen=null, rtSel={}, rtDate='', rtWhat='', rtRound=1, rtKind='vocab', rtAll=false;
 let afCls='', afNew='', afKind='retest', afDate='', afN='', afWhat='', afNote='', afPrint='', afSel={}, afRound=1, afRKind='vocab', afRep='one', afBook=null;
@@ -606,6 +608,10 @@ function bookOfItem(it,date){
   Object.keys(h).forEach(d=>{ if(d<=date && d>=best){ best=d; bk=h[d] } });
   return bk;
 }
+function setRoster(c,arr){
+  cfg.roster=cfg.roster||{};
+  cfg.roster[c]=arr.slice().sort((x,y)=>x.localeCompare(y,'ko'));
+}
 function setItemBook(it,date,name){
   it.books=it.books||{};
   if(name) it.books[date]=name; else delete it.books[date];
@@ -625,8 +631,8 @@ function setBook(cls,date,name){
 const cidx=c=>{const i=CLSORD.indexOf(c);return i<0?900:i};
 function allClasses(){
   const set={};
-  CLSORD.forEach(c=>set[c]=1);
   cfg.items.forEach(i=>set[i.cls]=1);
+  Object.keys((cfg&&cfg.roster)||{}).forEach(c=>set[c]=1);
   return Object.keys(set).sort((a,b)=>cidx(a)-cidx(b)||a.localeCompare(b));
 }
 function rank(r){
@@ -1133,6 +1139,12 @@ function rosterSection(){
   let h='<div class="grp"><h3 data-sec="ros" style="cursor:pointer">'+(rosSecOpen?'▾':'▸')+' 반별 명단 '
     +'<span style="font-weight:500;color:var(--ink-soft)">이름 지우기 · 넣기</span></h3>';
   if(!rosSecOpen)return h+'</div>';
+  h+= rosNew!=null
+    ? '<div class="item"><div class="fields"><div style="grid-column:1/-1">'
+      +'<label>새 반 이름</label><input id="rosnew" value="'+esc(rosNew)+'" placeholder="예: TPZ"></div></div>'
+      +'<div class="toolbar"><button class="btn" data-rosnewok="1">만들기</button>'
+      +'<button class="btn ghost" data-rosnewno="1">취소</button></div></div>'
+    : '<div class="toolbar" style="margin:0 0 10px"><button class="btn ghost" data-rosnew="1">＋ 반 추가</button></div>';
   allClasses().filter(c=>c.indexOf('&')<0).forEach(c=>{
     const list=roster(c), on=rosOpen===c;
     h+='<div class="srow'+(on?' open':'')+'">'
@@ -1143,12 +1155,15 @@ function rosterSection(){
     if(on){
       h+='<div style="padding:0 10px 10px">'
        +(list.length
-         ? '<div style="font-size:11px;color:var(--ink-soft);margin-bottom:4px">이름을 눌러 고치고, 화살표로 순서를 옮기세요</div>'
+         ? '<div style="font-size:11px;color:var(--ink-soft);margin-bottom:4px">이름을 눌러 고치거나 다른 반으로 옮길 수 있어요. 순서는 가나다순으로 저절로 정리됩니다</div>'
            +list.map((nm,i)=>
            '<div class="nmrow">'
-           +'<button class="ar" data-nmup="'+esc(c)+'|'+i+'"'+(i===0?' disabled':'')+'>▲</button>'
-           +'<button class="ar" data-nmdn="'+esc(c)+'|'+i+'"'+(i===list.length-1?' disabled':'')+'>▼</button>'
            +'<input data-nmset="'+esc(c)+'|'+i+'" value="'+esc(nm)+'">'
+           +'<select class="mv" data-nmmove="'+esc(c)+'|'+esc(nm)+'">'
+             +'<option value="">반 옮기기…</option>'
+             +allClasses().filter(x=>x!==c&&x.indexOf('&')<0)
+               .map(x=>'<option value="'+esc(x)+'">'+esc(x)+'</option>').join('')
+           +'</select>'
            +'<button class="ar'+(armed==='n'+c+nm?' danger':'')+'" data-rosdel="'+esc(c)+'|'+esc(nm)+'">✕</button>'
            +'</div>').join('')
          : '<div style="font-size:12px;color:var(--ink-soft)">아직 없어요</div>')
@@ -1158,14 +1173,23 @@ function rosterSection(){
            +'<button class="btn ghost" data-rosno2="1">취소</button></div>'
          : '')
        +'<div class="fields" style="margin-top:8px">'
+       +'<div style="grid-column:1/-1"><label>반 이름</label>'
+       +'<input data-rosren="'+esc(c)+'" value="'+esc(c)+'"></div>'
        +'<div style="grid-column:1/-1"><label>담임선생님</label>'
        +'<input id="rostch" value="'+esc(teacherOf(c))+'" placeholder="예: Daisy T"></div>'
        +'<div style="grid-column:1/-1"><label>이름 추가 (쉼표로 여러 명)</label>'
        +'<input id="rosin" placeholder="예: 김민준, 이서연"></div></div>'
        +'<div class="toolbar" style="margin:8px 0 0">'
        +'<button class="btn" data-rosadd="'+esc(c)+'">저장</button>'
-       +(list.length>1?'<button class="btn ghost" data-rossort="'+esc(c)+'">가나다순</button>':'')
-       +'<button class="btn ghost" data-rosno="1">닫기</button></div></div>';
+       +'<button class="btn danger" data-rosdelc="'+esc(c)+'">반 삭제</button>'
+       +'<button class="btn ghost" data-rosno="1">닫기</button></div>'
+       +(armed==='rc'+c
+         ? '<div class="confirm"><span><b>'+esc(c)+'</b> 반과 그 반 시험 '
+           +cfg.items.filter(i=>i.cls===c).length+'개를 모두 지울까요?</span>'
+           +'<button class="btn danger" data-rosdelcok="'+esc(c)+'">지우기</button>'
+           +'<button class="btn ghost" data-rosno2="1">취소</button></div>'
+         : '')
+       +'</div>';
     }
     h+='</div>';
   });
@@ -1731,34 +1755,57 @@ function wire(){
     const cur=(roster(c)||[]).slice();
     const v=el.value.trim();
     if(!v){toast('이름을 비울 수 없어요');render();return}
-    cur[+i]=v; cfg.roster=cfg.roster||{}; cfg.roster[c]=cur;
+    cur[+i]=v; setRoster(c,cur);
     await saveCfg(); render(); toast('고쳤어요');
   });
-  const move=async(c,i,d)=>{
-    const cur=(roster(c)||[]).slice(), j=i+d;
-    if(j<0||j>=cur.length)return;
-    const t0=cur[i]; cur[i]=cur[j]; cur[j]=t0;
-    cfg.roster=cfg.roster||{}; cfg.roster[c]=cur;
-    await saveCfg(); render();
-  };
-  document.querySelectorAll('[data-nmup]').forEach(b=>b.onclick=()=>{
-    const [c,i]=b.dataset.nmup.split('|'); move(c,+i,-1);
+  document.querySelectorAll('[data-nmmove]').forEach(el=>el.onchange=async()=>{
+    const [c,nm]=el.dataset.nmmove.split('|'), to=el.value;
+    if(!to){render();return}
+    setRoster(c,(roster(c)||[]).filter(x=>x!==nm));
+    const dst=(roster(to)||[]).slice();
+    if(dst.indexOf(nm)<0)dst.push(nm);
+    setRoster(to,dst);
+    await saveCfg(); render(); toast(nm+' → '+to+' 로 옮겼어요');
   });
-  document.querySelectorAll('[data-nmdn]').forEach(b=>b.onclick=()=>{
-    const [c,i]=b.dataset.nmdn.split('|'); move(c,+i,1);
-  });
-  document.querySelectorAll('[data-rossort]').forEach(b=>b.onclick=async()=>{
-    const c=b.dataset.rossort;
+  const rn=document.querySelector('[data-rosnew]');
+  if(rn)rn.onclick=()=>{rosNew='';render()};
+  const rnn=document.querySelector('[data-rosnewno]');
+  if(rnn)rnn.onclick=()=>{rosNew=null;render()};
+  const rno=document.querySelector('[data-rosnewok]');
+  if(rno)rno.onclick=async()=>{
+    const v=((document.querySelector('#rosnew')||{}).value||'').trim().toUpperCase();
+    if(!v){toast('반 이름을 넣어주세요');return}
     cfg.roster=cfg.roster||{};
-    cfg.roster[c]=(roster(c)||[]).slice().sort((x,y)=>x.localeCompare(y,'ko'));
-    await saveCfg(); render(); toast('가나다순으로 정렬했어요');
+    if(!cfg.roster[v])cfg.roster[v]=[];
+    rosNew=null; rosOpen=v; await saveCfg(); render(); toast(v+' 반을 만들었어요');
+  };
+  document.querySelectorAll('[data-rosren]').forEach(el=>el.onchange=async()=>{
+    const old=el.dataset.rosren, v=el.value.trim().toUpperCase();
+    if(!v||v===old){render();return}
+    cfg.roster=cfg.roster||{};
+    setRoster(v,roster(old)); delete cfg.roster[old];
+    if(cfg.teachers&&cfg.teachers[old]){ cfg.teachers[v]=cfg.teachers[old]; delete cfg.teachers[old] }
+    if(cfg.books&&cfg.books[old]){ cfg.books[v]=cfg.books[old]; delete cfg.books[old] }
+    cfg.items.forEach(i=>{ if(i.cls===old)i.cls=v });
+    rosOpen=v; await saveCfg(); render(); toast(old+' → '+v);
+  });
+  document.querySelectorAll('[data-rosdelc]').forEach(b=>b.onclick=()=>{
+    armed='rc'+b.dataset.rosdelc; render();
+  });
+  document.querySelectorAll('[data-rosdelcok]').forEach(b=>b.onclick=async()=>{
+    const c=b.dataset.rosdelcok;
+    armed=null; rosOpen=null;
+    cfg.items=cfg.items.filter(i=>i.cls!==c);
+    if(cfg.roster)delete cfg.roster[c];
+    if(cfg.teachers)delete cfg.teachers[c];
+    if(cfg.books)delete cfg.books[c];
+    await saveCfg(); render(); toast(c+' 반을 지웠어요');
   });
   const rosok=document.querySelector('[data-rosok]');
   if(rosok)rosok.onclick=async()=>{
     const [c,nm]=rosok.dataset.rosok.split('|');
     armed=null;
-    cfg.roster=cfg.roster||{};
-    cfg.roster[c]=(roster(c)||[]).filter(x=>x!==nm);
+    setRoster(c,(roster(c)||[]).filter(x=>x!==nm));
     await saveCfg(); render(); toast(nm+' 뺐어요');
   };
   document.querySelectorAll('[data-rosadd]').forEach(b=>b.onclick=async()=>{
@@ -1771,10 +1818,9 @@ function wire(){
     const raw=(el?el.value:'')||'';
     const add=raw.split(/[,·\/\n]/).map(x=>x.trim()).filter(Boolean);
     if(!add.length){ await saveCfg(); render(); toast('저장했어요'); return }
-    cfg.roster=cfg.roster||{};
     const cur=(roster(c)||[]).slice();
     add.forEach(nm=>{ if(cur.indexOf(nm)<0)cur.push(nm) });
-    cfg.roster[c]=cur;
+    setRoster(c,cur);
     await saveCfg(); render(); toast(add.length+'명 넣었어요');
   });
   document.querySelectorAll('[data-edit]').forEach(el=>el.onclick=()=>{
