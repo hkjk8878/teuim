@@ -231,6 +231,7 @@ const KIND={
   book:{label:'교재 (Day 주마다 올라감)',cls:'auto'},
   manual:{label:'매번 범위 적기',cls:'auto'},
   set:{label:'내용 직접 적기',cls:'auto'},
+  seq:{label:'순서대로 (자체교재)',cls:'fixed'},
   fixed:{label:'자체교재',cls:'fixed'}
 };
 
@@ -241,7 +242,7 @@ const N={TWC:5,TPG:9,TPA:3,THA:6,TPP:10,TPV:7,TPD:7,TPC:10,THI:10,TPN:7,
   TMX:9,TMP:8,TMG:8,TMB:7,TPF:4,TP1:5,TM1:8};
 
 const SEEDV=11;
-const APP_VER='1.39';
+const APP_VER='1.42';
 
 /* 반별 명단 — 시간표에서 읽음. 틀린 이름은 아래 ROSTER에서 고치면 됩니다. */
 const HOL0=[
@@ -303,6 +304,17 @@ function merge(old){
   (old.items||[]).forEach(i=>{ have[sig(i)]=1 });
   // 예전 것은 전부 그대로 두고, 새로 생긴 것만 더함
   const add=fresh.items.filter(i=>!have[sig(i)]);
+  // 자체교재: 요일 고정 → 순서대로 로 바꾸기 (적어둔 교재 기록은 이어받음)
+  const oldSelf=(old.items||[]).filter(i=>i.noprint&&i.kind==='book'
+    &&(i.fmt==='영단어만 쓰기'||i.fmt==='뜻만 쓰기'));
+  const keepBooks={};
+  oldSelf.forEach(i=>{ if(i.books&&!keepBooks[i.cls])keepBooks[i.cls]=i.books });
+  const seqCls={}; fresh.items.filter(i=>i.kind==='seq').forEach(i=>seqCls[i.cls]=1);
+  old=Object.assign({}, old, {items:(old.items||[]).filter(i=>!(
+    (i.noprint&&i.kind==='book'&&(i.fmt==='영단어만 쓰기'||i.fmt==='뜻만 쓰기')&&seqCls[i.cls])
+    || (i.cls==='TP1'&&i.kind==='blank'&&i.wd===4)))});
+  fresh.items.forEach(i=>{ if(i.kind==='seq'&&keepBooks[i.cls])i.books=keepBooks[i.cls] });
+
   const out=Object.assign({}, old, {v:SEEDV});
   out.items=(old.items||[]).concat(add).map(i=>{
     if(i.kind==='vocab'&&i.base!=null){       // 단어시험은 번호를 쓰지 않음
@@ -361,7 +373,6 @@ function seed(){
   A({cls:'TPC',kind:'vocab',wd:3}),
 
   /* ── 매주 목요일 ── */
-  A({cls:'TP1',kind:'blank',wd:4,from:'2026-09-10'}),
   A({cls:'TPN',kind:'manual',wd:4,from:'2026-09-10',book:'리딩튜터1',note:'9/10 = 3-2'}),
   A({cls:'THI',kind:'blank',wd:4,from:'2026-09-10',sure:false}),
 
@@ -381,24 +392,20 @@ function seed(){
   A({cls:'파닉스 개강반',kind:'vocab',wd:2,off:true,sure:false,src:'파닉스',n:0}),
   A({cls:'THA',kind:'vocab',wd:2,off:true,sure:false,src:'파닉스'}),
 
-  /* ── 자체교재 반: 주에 Day 하나, 앞날=영단어만 쓰기 / 뒷날=뜻만 쓰기. 9/7 주가 Day1 ── */
-  ...selfBook('TMX','뜯중 1800',1,3,null,null,true),
-  ...selfBook('TMP','뜯중 1800',1,3,null,null,true),
-  ...selfBook('TMG','워드마스터 중등 실력',1,3,null,null,true),
-  ...selfBook('TMB','뜯중 1200',1,3,null,null,true),
-  ...selfBook('TPX','뜯중 1800',2,4,null,null,true),
-  ...selfBook('TPF','워드마스터 수능 2000',2,4,null,null,true),
-  ...selfBook('TM1','뜯중 1800',2,4,null,null,true),
-  A({cls:'TP1',kind:'book',wd:2,book:'뜯중 1800',base:1,anchor:'2026-09-08',step:1,fmt:'영단어만 쓰기',noprint:true,from:'2026-09-15',sure:false})
+  /* ── 자체교재 반: 수업하는 날마다 한 칸씩 (Day N 영단어 → 같은 Day 뜻 → Day N+1 …) ── */
+  selfSeq('TMX','뜯중 1800',[1,3],'2026-09-07'),
+  selfSeq('TMP','뜯중 1800',[1,3],'2026-09-07'),
+  selfSeq('TMG','워드마스터 중등 실력',[1,3],'2026-09-07'),
+  selfSeq('TMB','뜯중 1200',[1,3],'2026-09-07'),
+  selfSeq('TPX','뜯중 1800',[2,4],'2026-09-08'),
+  selfSeq('TPF','워드마스터 수능 2000',[2,4],'2026-09-08'),
+  selfSeq('TM1','뜯중 1800',[2,4],'2026-09-08'),
+  selfSeq('TP1','뜯중 1800',[2,4],'2026-09-08')
   ]};
 
-  function selfBook(cls,book,wdA,wdB,fromA,fromB,ok){
-    const anchorA = wdA===1?'2026-09-07':'2026-09-08';
-    const anchorB = wdB===3?'2026-09-09':'2026-09-10';
-    return [
-      A({cls,kind:'book',wd:wdA,book,base:1,anchor:anchorA,step:1,fmt:'영단어만 쓰기',noprint:true,from:fromA,sure:!!ok}),
-      A({cls,kind:'book',wd:wdB,book,base:1,anchor:anchorB,step:1,fmt:'뜻만 쓰기',noprint:true,from:fromB,sure:!!ok})
-    ];
+  function selfSeq(cls,book,wds,anchor){
+    return A({cls,kind:'seq',book,wds,anchor,base:1,phase:0,
+      pattern:['영단어만 쓰기','뜻만 쓰기'],ul:'Day',noprint:true});
   }
 }
 
@@ -516,11 +523,24 @@ function lastVal(id,before){
   return best;
 }
 
+/* 자체교재처럼 '수업하는 날마다 한 칸씩' 넘어가는 시험
+   Day N 영단어 → 같은 Day 뜻 → Day N+1 영단어 … 요일이 아니라 순서로 셉니다 */
+function seqIndex(it,date){
+  const wds=it.wds||[];
+  let d=it.anchor, k=0, g=0;
+  while(d<date && g++<800){
+    const w=parse(d).getDay();
+    if(wds.indexOf(w)>=0 && !isHol(d) && !(it.skip||[]).includes(d) && !(it.hide||[]).includes(d)) k++;
+    d=shift(d,1);
+  }
+  return (it.phase||0)+k;
+}
 function resolve(it,date,ignoreHol){
   if(it.off)return null;
   if(it.once){ if(it.once!==date)return null; }
   else{
-    if(parse(date).getDay()!==it.wd)return null;
+    if(it.kind==='seq'){ if((it.wds||[]).indexOf(parse(date).getDay())<0)return null }
+    else if(parse(date).getDay()!==it.wd)return null;
     if(it.from&&date<it.from)return null;
     if(it.skip&&it.skip.indexOf(date)>=0)return null;
     if(it.hide&&it.hide.indexOf(date)>=0)return null;
@@ -530,6 +550,15 @@ function resolve(it,date,ignoreHol){
   const rn=roster(it.cls).length;
   const ib=bookOfItem(it,date);
   const o={it,kind:it.kind,cls:it.cls,n:((it.kind==='retest'||it.nFix)? (it.n||0) : (rn||it.n||0)),sure:it.sure!==false,note:it.note||'',label:it.label||'',book:(ib||it.book||''),src:it.src||''};
+  if(it.kind==='seq'){
+    const pat=it.pattern||['영단어만 쓰기','뜻만 쓰기'];
+    const idx=seqIndex(it,date);
+    o.num=it.base+Math.floor(idx/pat.length);
+    o.ul=it.ul||'Day';
+    o.seqFmt=pat[idx%pat.length];
+    o.invalid=o.num<1;
+    return o;
+  }
   if(it.base!=null&&it.anchor){
     const skipped=(it.skip||[]).filter(x=>x>it.anchor&&x<date).length + holSkips(it,date);
     o.num=it.base+it.step*(weeksBetween(it.anchor,date)-skipped);
@@ -652,6 +681,7 @@ const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;',
 const qtyOf=(r)=>{const e=entry(sel,r.it.id);return e.qty!=null?e.qty:r.n};
 const prints=(r)=>r.kind==='retest'||!(r.it.noprint||r.kind==='fixed');  // 재시험은 늘 다시 뽑음
 function vOf(it){
+  if(it.kind==='seq')return 'self';
   if(it.kind==='retest')return 'retest';
   if(it.kind==='vocab')return 'vocab';
   if(it.kind==='blank')return 'blank';
@@ -667,6 +697,7 @@ function vOf(it){
 function rangeOf(r){
   const e=entry(sel,r.it.id);
   if(r.kind==='set')return r.label||'';
+  if(r.kind==='seq')return (r.ul||'Day')+' '+(r.num!=null?r.num:'')+(r.seqFmt?' · '+r.seqFmt:'');
   if(r.kind==='book')return (r.ul||'Day')+' '+(r.num!=null?r.num:'')+(r.it.fmt?' · '+r.it.fmt:'');
   if(r.kind==='blank')return e.val||r.src||'';
   if(r.kind==='manual')return e.val||'';
@@ -677,7 +708,7 @@ function rangeOf(r){
   return t;
 }
 function rowBook(r){
-  return bookOfItem(r.it,sel) || r.it.ownBook || (r.kind==='book'? (r.book||'') : '') || bookOf(r.cls, sel);
+  return bookOfItem(r.it,sel) || r.it.ownBook || ((r.kind==='book'||r.kind==='seq')? (r.book||'') : '') || bookOf(r.cls, sel);
 }
 function tintOf(r){
   if(r.kind==='retest')return 't-retest';
@@ -713,6 +744,10 @@ function content(r){
   if(r.kind==='set')return esc(r.label);
   if(r.kind==='each')return (r.src?esc(r.src):'각자 다름')
     +' <span style="color:var(--ink-soft)">· 매번 바뀜, 아래에 직접 쓰기</span>';
+  if(r.kind==='seq'){
+    const head=r.it.noprint?'자체교재':esc(r.book||'교재');
+    return head+unit+(r.seqFmt?' <span style="color:var(--ink)">· '+esc(r.seqFmt)+'</span>':'');
+  }
   if(r.kind==='book'){
     const head=r.it.noprint?'자체교재':esc(r.book);
     const tail='';
@@ -1069,6 +1104,8 @@ function itemSummary(it){
   if(it.kind==='set')return it.label||'내용 직접';
   if(it.kind==='manual')return (it.book||'')+' · 직접 입력';
   if(it.kind==='fixed')return '자체교재';
+  if(it.kind==='seq')return (it.noprint?'자체교재':(it.book||'교재'))
+    +' '+(it.ul||'Day')+' 순서대로 · '+(it.wds||[]).map(w=>DAYK[w]).join('·');
   if(it.kind==='book')return (it.noprint?'자체교재':(it.book||'교재'))
     +' '+(it.ul||'Day')+' 자동'+(it.fmt?' · '+it.fmt:'');
   return it.kind;
@@ -1094,7 +1131,11 @@ function itemFields(it){
    +'<div><label>언제</label><select data-k="rep" data-id="'+it.id+'">'
      +'<option value="week"'+(it.once?'':' selected')+'>매주</option>'
      +'<option value="one"'+(it.once?' selected':'')+'>그 날만</option></select></div>'
-   +(it.once? f('once','그 날짜','date')
+   +(it.kind==='seq'
+      ? '<div style="grid-column:1/-1"><label>수업하는 요일 (누르면 켜고 꺼짐)</label><div class="names">'
+        +[1,2,3,4,5].map(w=>'<button class="nm'+(((it.wds||[]).indexOf(w)>=0)?' on':'')
+          +'" data-wdtg="'+it.id+'|'+w+'">'+DAYK[w]+'</button>').join('')+'</div></div>'
+      : it.once? f('once','그 날짜','date')
       :'<div><label>매주 요일</label><select data-k="wd" data-id="'+it.id+'">'
         +[1,2,3,4,5].map(w=>'<option value="'+w+'"'+(it.wd===w?' selected':'')+'>'+DAYK[w]+'요일</option>').join('')+'</select></div>')
    +(it.kind==='blank'?f('src','기본 내용 (예: 품사)','text'):'')
@@ -1757,6 +1798,13 @@ function wire(){
     if(!v){toast('이름을 비울 수 없어요');render();return}
     cur[+i]=v; setRoster(c,cur);
     await saveCfg(); render(); toast('고쳤어요');
+  });
+  document.querySelectorAll('[data-wdtg]').forEach(b=>b.onclick=async()=>{
+    const [id,w]=b.dataset.wdtg.split('|');
+    const it=cfg.items.find(x=>x.id===id); if(!it)return;
+    const ws=(it.wds||[]).slice(), i=ws.indexOf(+w);
+    if(i>=0)ws.splice(i,1); else ws.push(+w);
+    it.wds=ws.sort(); await saveCfg(); render();
   });
   document.querySelectorAll('[data-nmmove]').forEach(el=>el.onchange=async()=>{
     const [c,nm]=el.dataset.nmmove.split('|'), to=el.value;
