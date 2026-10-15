@@ -244,7 +244,7 @@ const N={TWC:5,TPG:9,TPA:3,THA:6,TPP:10,TPV:7,TPD:7,'TPD-1':0,'TPD & TPD-1':7,TP
   TMX:9,TMP:8,TMG:8,TMB:7,TPF:4,'TPF-1':0,TP1:5,TM1:8};
 
 const SEEDV=22;
-const APP_VER='1.76';
+const APP_VER='1.77';
 
 /* 반별 명단 — 시간표에서 읽음. 틀린 이름은 아래 ROSTER에서 고치면 됩니다. */
 const HOL0=[
@@ -963,8 +963,6 @@ function rowHTML(r){
   }
   const acts=[];
   acts.push('<button class="notebtn" data-img="'+id+'">답지 사진'+((e.imgs||[]).length?' '+e.imgs.length+'장':' 넣기')+'</button>');
-  if(r.kind==='seq')
-    acts.push('<button class="notebtn" data-edt="seq|'+id+'">오늘 순서 맞추기</button>');
   if(r.kind==='retest')
     acts.push('<button class="notebtn" data-edt="names|'+id+'">누가 보는지 고치기</button>');
   if(r.kind==='retest'&&(r.it.names||[]).length){
@@ -998,9 +996,18 @@ function edtPanel(r){
   if(t==='move')
     return box('<div class="fields" style="margin:0"><div><label>언제로 옮길까요</label>'
       +'<input type="date" id="ev" value="'+esc(edt.v||shift(sel,1))+'"></div></div>', '옮기기');
-  if(t==='num')
-    return box('<div class="fields" style="margin:0"><div><label>이 날 실제 '+(r.ul||'Day')+' 번호</label>'
-      +'<input type="number" id="ev" value="'+esc(edt.v!=null?edt.v:r.num)+'"></div></div>', '번호 바꾸기');
+  if(t==='num'){
+    const pat=(r.kind==='seq'?(r.it.pattern||['영단어만 쓰기','뜻만 쓰기']):null);
+    const two=pat&&pat.length>1;
+    return box('<div class="fields" style="margin:0">'
+      +'<div><label>오늘 '+(r.ul||'Day')+' 번호</label>'
+      +'<input type="number" id="ev" value="'+esc(edt.v!=null?edt.v:r.num)+'"></div>'
+      +(two?'<div><label>오늘 보는 것</label><select id="ev2">'
+        +pat.map(x=>'<option value="'+esc(x)+'"'+(x===(r.seqFmt||pat[0])?' selected':'')+'>'+esc(x)+'</option>').join('')
+        +'</select></div>':'')
+      +'</div><div class="meta">오늘을 이렇게 맞추면 그 뒤로는 알아서 이어집니다.</div>',
+      '오늘부터 맞추기');
+  }
   if(t==='qty')
     return box('<div class="fields" style="margin:0"><div><label>이 날 뽑을 장수 (반 '+(r.n||0)+'명)</label>'
       +'<input type="number" id="ev" value="'+esc(edt.v!=null?edt.v:qtyOf(r))+'"></div></div>', '장수 바꾸기');
@@ -1024,19 +1031,6 @@ function edtPanel(r){
       +'<label>'+esc(r.cls)+' 담임선생님</label>'
       +'<input id="ev" value="'+esc(edt.v!=null?edt.v:teacherOf(r.cls))+'" placeholder="예: Daisy T"></div></div>',
       '담임 저장');
-  }
-  if(t==='seq'){
-    const pat=r.it.pattern||['영단어만 쓰기','뜻만 쓰기'];
-    const cur=r.seqFmt||pat[0];
-    return box('<div style="font-size:13px;margin-bottom:8px">오늘 '+esc(r.cls)+'은 무엇을 보나요?</div>'
-      +'<div class="fields" style="margin:0">'
-      +'<div><label>오늘 보는 것</label><select id="ev">'
-        +pat.map(x=>'<option value="'+esc(x)+'"'+(x===cur?' selected':'')+'>'+esc(x)+'</option>').join('')
-        +'</select></div>'
-      +'<div><label>오늘 '+(r.ul||'Day')+'</label>'
-        +'<input type="number" id="ev2" value="'+(r.num!=null?r.num:1)+'"></div></div>'
-      +'<div class="meta">여기서 맞추면 그 뒤로는 수업하는 날마다 알아서 이어집니다.</div>',
-      '순서 맞추기');
   }
   if(t==='note'){
     const e2=entry(sel,r.it.id);
@@ -1681,21 +1675,20 @@ function wire(){
     }
     if(t==='num'){
       const n=parseInt(val,10); if(isNaN(n)){toast('숫자를 넣어주세요');return}
-      const rr=resolve(it,sel,true);
-      if(rr&&rr.num!=null) it.base += (n - rr.num);   // 기준 날은 그대로, 번호만 통째로 이동
-      else { it.anchor=sel; it.base=n }
+      if(it.kind==='seq'){
+        const pat=it.pattern||['영단어만 쓰기','뜻만 쓰기'];
+        const pick=(document.querySelector('#ev2')||{}).value;
+        const p=Math.max(0,pat.indexOf(pick!==undefined?pick:pat[0]));
+        const now=seqIndex(it,sel);
+        const want=(n-(it.base||1))*pat.length+p;
+        it.phase=(it.phase||0)+(want-now);
+      }else{
+        const rr=resolve(it,sel,true);
+        if(rr&&rr.num!=null) it.base += (n - rr.num);
+        else { it.anchor=sel; it.base=n }
+      }
       it.sure=true;
-      edt=null; await saveCfg(); render(); toast('번호를 다시 맞췄어요'); return;
-    }
-    if(t==='seq'){
-      const pat=it.pattern||['영단어만 쓰기','뜻만 쓰기'];
-      const p=Math.max(0,pat.indexOf(val));
-      const D=parseInt((document.querySelector('#ev2')||{}).value,10);
-      if(isNaN(D)){toast('숫자를 넣어주세요');return}
-      const now=seqIndex(it,sel);
-      const want=(D-(it.base||1))*pat.length+p;
-      it.phase=(it.phase||0)+(want-now);
-      edt=null; await saveCfg(); render(); toast('오늘을 '+val+' '+(it.ul||'Day')+' '+D+'로 맞췄어요'); return;
+      edt=null; await saveCfg(); render(); toast('오늘부터 맞췄어요'); return;
     }
     if(t==='note'){
       entry(sel,it.id).note=val;
