@@ -242,7 +242,7 @@ const N={TWC:5,TPG:9,TPA:3,THA:6,TPP:10,TPV:7,TPD:7,'TPD-1':0,'TPD&TPD-1':7,TPC:
   TMX:9,TMP:8,TMG:8,TMB:7,TPF:4,TP1:5,TM1:8};
 
 const SEEDV=18;
-const APP_VER='1.55';
+const APP_VER='1.56';
 
 /* 반별 명단 — 시간표에서 읽음. 틀린 이름은 아래 ROSTER에서 고치면 됩니다. */
 const HOL0=[
@@ -1285,7 +1285,7 @@ function setRow(it){
   return '<div class="srow'+(it.off?' isoff':'')+(on?' open':'')+'">'
    +'<div class="sline" data-edit="'+it.id+'">'
    +'<b>'+esc(it.cls)+'</b><span>'+esc(itemSummary(it))+'</span>'
-   +'<em>'+(it.n||0)+'명</em>'
+   +'<em>'+((it.kind==='retest'||it.nFix)?(it.n||0):headcount(it.cls))+'명</em>'
    +(it.off?'<u class="warn">안 봄</u>':'')+(it.sure===false?'<u class="warn">확인</u>':'')
    +'<i>'+(on?'▲':'수정')+'</i></div>'
    +(on?itemFields(it):'')+'</div>';
