@@ -242,7 +242,7 @@ const N={TWC:5,TPG:9,TPA:3,THA:6,TPP:10,TPV:7,TPD:7,'TPD-1':0,'TPD&TPD-1':7,TPC:
   TMX:9,TMP:8,TMG:8,TMB:7,TPF:4,TP1:5,TM1:8};
 
 const SEEDV=18;
-const APP_VER='1.57';
+const APP_VER='1.59';
 
 /* 반별 명단 — 시간표에서 읽음. 틀린 이름은 아래 ROSTER에서 고치면 됩니다. */
 const HOL0=[
@@ -490,7 +490,7 @@ let cfg=seed(), logs={}, sel=null, tab='day', memory=false, open={}, addOpen=fal
 let rosOpen=null, dayOpen={}, rosSecOpen=false, rosNew=null, rosMg='';
 let calMo=null, calDay=null, calAdd=null, calEdit=null;  // calAdd={start,end,ty,tx}
 let rtOpen=null, rtSel={}, rtDate='', rtWhat='', rtRound=1, rtKind='vocab', rtAll=false;
-let afCls='', afNew='', afKind='retest', afDate='', afN='', afWhat='', afNote='', afPrint='', afSel={}, afRound=1, afRKind='vocab', afRep='one', afBook=null, afPick={};
+let afCls='', afNew='', afKind='retest', afDate='', afN='', afWhat='', afNote='', afPrint='', afSel={}, afRound=1, afRKind='vocab', afRep='one', afBook=null, afPick={}, afImgs=[];
 
 const pad=n=>String(n).padStart(2,'0');
 const ymd=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
@@ -620,6 +620,7 @@ function resolve(it,date,ignoreHol){
     if(it.skip&&it.skip.indexOf(date)>=0)return null;
     if(it.hide&&it.hide.indexOf(date)>=0)return null;
     if(isHol(date)&&!ignoreHol)return null;     // 공휴일 = 학원 쉼
+    if(it.until&&date>=it.until)return null;   // 이 날부터 없앤 시험 (지난 기록은 남음)
     if(it.anchor&&it.base!=null&&date<it.anchor)return null;  // 번호 세는 기준 날 = 시작하는 날
   }
   const rn=headcount(it.cls);
@@ -1008,9 +1009,10 @@ function edtPanel(r){
     return box('<div style="font-size:13px">'
       +(r.it.once
         ? '이 시험을 지울까요?'
-        : '<b>'+esc(r.cls)+'</b> 이 시험이 <b>매주 목록에서 아예 없어집니다.</b><br>'
-          +'<span style="color:var(--ink-soft)">오늘 하루만 안 보는 거면 「이 날만 빼기」를 쓰세요.</span>')
-      +'</div>', r.it.once?'지우기':'매주 없애기');
+        : '<b>'+esc(r.cls)+'</b> 이 시험을 <b>오늘부터 없앱니다.</b><br>'
+          +'<span style="color:var(--ink-soft)">'+esc(d2s(sel))+' 이전 기록은 그대로 남아요. '
+          +'오늘 하루만 안 보는 거면 「오늘 시험 X」를 쓰세요.</span>')
+      +'</div>', r.it.once?'지우기':'오늘부터 없애기');
   if(t==='off'){
     const lab=r.num!=null?((r.ul||'Day')+' '+r.num):'오늘 볼 것';
     const v=edt.v||'next';
@@ -1180,6 +1182,12 @@ function addForm(){
      +(sameKind?'<br><b>같은 종류예요. 그래도 넣으면 두 개가 됩니다.</b>':'')
      +'</div>';
   }
+  h+='<div style="margin-top:10px">'
+   +(afImgs.length?'<div class="thumbs">'+afImgs.map((v,i)=>
+      '<span class="th"><img src="'+esc(imgSrc(v))+'" data-big="'+esc(imgSrc(v))+'" alt="답지">'
+      +'<button class="thx" data-aimgdel="'+i+'">✕</button></span>').join('')+'</div>':'')
+   +'<button class="notebtn" data-aimg="1" style="margin-top:6px">답지 사진'
+   +(afImgs.length?' '+afImgs.length+'장 · 더 넣기':' 넣기')+'</button></div>';
   h+='<div class="toolbar"><button class="btn" data-addok="1">'
    +(sameKind&&armed==='dup'?'그래도 넣기':'추가')+'</button>'
    +'<button class="btn ghost" data-addcancel="1">취소</button></div></div>';
@@ -1271,11 +1279,11 @@ function itemFields(it){
        +f('fmt','쓰는 방식','text') : '')
    +f('note','메모','text')
    +'</div><div class="toolbar">'
-   +'<button class="mini" data-off="'+it.id+'">'+(it.off?'다시 보게 하기':'이 시험 안 보기')+'</button>'
+   +((it.off||it.until)?'<button class="mini" data-revive="'+it.id+'">다시 살리기</button>':'')
    +'<button class="mini" data-del="'+it.id+'">삭제</button>'
    +'<button class="mini" data-close="'+it.id+'">닫기</button></div>'
    +(armed==='d'+it.id
-     ? '<div class="confirm"><span>이 시험을 지울까요?</span>'
+     ? '<div class="confirm"><span>'+(it.once?'이 시험을 지울까요?':'오늘('+d2s(sel)+')부터 없앨까요? 지난 기록은 남아요.')+'</span>'
        +'<button class="btn danger" data-delok="'+it.id+'">지우기</button>'
        +'<button class="btn ghost" data-delno="1">취소</button></div>'
      : '');
@@ -1644,10 +1652,13 @@ function wire(){
       edt=null; await saveCfg(); render(); toast('바꿨어요'); return;
     }
     if(t==='del'){
-      if(!/^[umkr]/.test(it.id||'')){
-        cfg.removedKeys=(cfg.removedKeys||[]).concat([skeyOf(it)]);
+      if(it.once){
+        if(!/^[umkr]/.test(it.id||''))cfg.removedKeys=(cfg.removedKeys||[]).concat([skeyOf(it)]);
+        cfg.items=cfg.items.filter(x=>x.id!==it.id);
+      }else{
+        it.until=sel;                       // 오늘부터 없음, 지난 기록은 유지
       }
-      cfg.items=cfg.items.filter(x=>x.id!==it.id); edt=null; await saveCfg(); render(); return;
+      edt=null; await saveCfg(); render(); toast(it.once?'지웠어요':'오늘부터 없앴어요'); return;
     }
     if(t==='off'||t==='move'){
       const how = t==='move' ? 'date' : (val||'next');
@@ -1687,6 +1698,11 @@ function wire(){
   };
   document.querySelectorAll('[data-img]').forEach(b=>b.onclick=()=>{
     pendImg=b.dataset.img; $('#imgin').click();
+  });
+  const aimg=document.querySelector('[data-aimg]');
+  if(aimg)aimg.onclick=()=>{ grabAF(); pendImg='__add'; $('#imgin').click() };
+  document.querySelectorAll('[data-aimgdel]').forEach(b=>b.onclick=()=>{
+    grabAF(); afImgs.splice(+b.dataset.aimgdel,1); render();
   });
   document.querySelectorAll('[data-big]').forEach(im=>im.onclick=()=>{
     $('#lb').querySelector('img').src=im.dataset.big; $('#lb').classList.add('on');
@@ -1770,7 +1786,7 @@ function wire(){
     grabAF(); const k=b.dataset.afn; afSel[k]=!afSel[k]; afN=''; render();
   });
   const cancel=document.querySelector('[data-addcancel]');
-  if(cancel)cancel.onclick=()=>{addOpen=false;render()};
+  if(cancel)cancel.onclick=()=>{addOpen=false;afImgs=[];render()};
   const ok=document.querySelector('[data-addok]');
   if(ok)ok.onclick=async()=>{
     grabAF();
@@ -1796,6 +1812,14 @@ function wire(){
     const bk=(afBook!=null?afBook:'').trim();
     if(bk) setItemBook(it, afDate, bk);
     cfg.items.push(it);
+    if(afImgs.length){
+      await loadLog(afDate.slice(0,7));
+      const m3=afDate.slice(0,7);
+      logs[m3][afDate]=logs[m3][afDate]||{};
+      logs[m3][afDate][it.id]=Object.assign(logs[m3][afDate][it.id]||{},{imgs:afImgs.slice()});
+      await saveLog(m3);
+    }
+    afImgs=[];
     const d=afDate; addOpen=false; await saveCfg();
     if(d!==sel){ await go(d) } else { render() }
     toast(d.slice(5)+' '+c+' 추가했어요');
@@ -1828,8 +1852,10 @@ function wire(){
     if(k!=='cls'&&k!=='n')it.sure=true;
     await saveCfg(); render();
   });
-  document.querySelectorAll('[data-off]').forEach(b=>b.onclick=async()=>{
-    const it=cfg.items.find(x=>x.id===b.dataset.off); it.off=!it.off; await saveCfg(); render();
+  document.querySelectorAll('[data-revive]').forEach(b=>b.onclick=async()=>{
+    const it=cfg.items.find(x=>x.id===b.dataset.revive);
+    delete it.off; delete it.until;
+    await saveCfg(); render(); toast('다시 살렸어요');
   });
   document.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{
     armed='d'+b.dataset.del; render();
@@ -1841,9 +1867,11 @@ function wire(){
     const id=delok.dataset.delok;
     armed=null; editing={};
     const gone=cfg.items.find(x=>x.id===id);
-    if(gone&&!/^[umkr]/.test(gone.id||''))cfg.removedKeys=(cfg.removedKeys||[]).concat([skeyOf(gone)]);
-    cfg.items=cfg.items.filter(x=>x.id!==id);
-    await saveCfg(); render(); toast('지웠어요');
+    if(gone&&gone.once){
+      if(!/^[umkr]/.test(gone.id||''))cfg.removedKeys=(cfg.removedKeys||[]).concat([skeyOf(gone)]);
+      cfg.items=cfg.items.filter(x=>x.id!==id);
+    }else if(gone){ gone.until=sel }
+    await saveCfg(); render(); toast(gone&&gone.once?'지웠어요':'오늘부터 없앴어요');
   };
   document.querySelectorAll('[data-addto]').forEach(b=>b.onclick=async()=>{
     const c=b.dataset.addto;
@@ -2093,6 +2121,7 @@ $('#imgin').onchange=async e=>{
   toast('사진 올리는 중…');
   try{
     const v=await upImg(await shrink(f));
+    if(id==='__add'){ afImgs=afImgs.concat([v]); render(); toast('답지 넣었어요'); return }
     const en=entry(sel,id); en.imgs=(en.imgs||[]).concat([v]);
     await saveLog(sel.slice(0,7)); render(); toast('답지 넣었어요');
   }catch(err){ toast('사진 실패 — '+(err&&err.message?err.message:'')) }
