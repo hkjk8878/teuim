@@ -242,7 +242,7 @@ const N={TWC:5,TPG:9,TPA:3,THA:6,TPP:10,TPV:7,TPD:7,'TPD-1':0,'TPD&TPD-1':7,TPC:
   TMX:9,TMP:8,TMG:8,TMB:7,TPF:4,TP1:5,TM1:8};
 
 const SEEDV=18;
-const APP_VER='1.61';
+const APP_VER='1.64';
 
 /* 반별 명단 — 시간표에서 읽음. 틀린 이름은 아래 ROSTER에서 고치면 됩니다. */
 const HOL0=[
@@ -382,6 +382,9 @@ function merge(old){
     });
   }
 
+  const dead={}; (old.removedCls||[]).forEach(c=>dead[c]=1);
+  const liveCls=x=>!dead[x];                  // 지운 반만. 합반은 따로
+
   const out=Object.assign({}, old, {v:SEEDV});
   out.items=(old.items||[]).concat(add).map(i=>{
     if(i.kind==='vocab'&&i.base!=null){       // 단어시험은 번호를 쓰지 않음
@@ -390,10 +393,14 @@ function merge(old){
       return j;
     }
     return i;
-  });
+  }).filter(i=>liveCls(i.cls));
+  out.removedCls=(old.removedCls||[]).slice();
   out.books=Object.assign({}, fresh.books, old.books||{});
   out.roster=Object.assign({}, fresh.roster, old.roster||{});
   out.teachers=Object.assign({}, fresh.teachers, old.teachers||{});
+  [out.books,out.roster,out.teachers].forEach(m=>{
+    Object.keys(m).forEach(c=>{ if(!liveCls(c))delete m[c] });
+  });
   const oldCal=old.cal||[];
   const hasDate={}; oldCal.forEach(e=>{ if(e.type==='hol')hasDate[e.date]=1 });
   out.cal=oldCal.concat((fresh.cal||[]).filter(e=>!hasDate[e.date]));
@@ -1304,7 +1311,8 @@ function setRow(it){
    +(it.sure===false?'<u class="warn">확인</u>':'')
    +'<i>'+(on?'▲':'수정')+'</i></div>'
    +(dead?'<div class="confirm" style="margin:0 10px 10px"><span>지금은 안 나오는 시험이에요</span>'
-     +'<button class="btn ghost" data-revive="'+it.id+'">다시 살리기</button></div>':'')
+     +'<button class="btn ghost" data-revive="'+it.id+'">다시 살리기</button>'
+     +'<button class="btn danger" data-wipe="'+it.id+'">목록에서 지우기</button></div>':'')
    +(on?itemFields(it):'')+'</div>';
 }
 function rosterSection(){
@@ -1861,6 +1869,12 @@ function wire(){
     if(k!=='cls'&&k!=='n')it.sure=true;
     await saveCfg(); render();
   });
+  document.querySelectorAll('[data-wipe]').forEach(b=>b.onclick=async()=>{
+    const id=b.dataset.wipe, it=cfg.items.find(x=>x.id===id);
+    if(it&&!/^[umkr]/.test(it.id||''))cfg.removedKeys=(cfg.removedKeys||[]).concat([skeyOf(it)]);
+    cfg.items=cfg.items.filter(x=>x.id!==id);
+    editing={}; await saveCfg(); render(); toast('목록에서 지웠어요');
+  });
   document.querySelectorAll('[data-revive]').forEach(b=>b.onclick=async()=>{
     const it=cfg.items.find(x=>x.id===b.dataset.revive);
     delete it.off; delete it.until;
@@ -2064,11 +2078,17 @@ function wire(){
   document.querySelectorAll('[data-rosdelcok]').forEach(b=>b.onclick=async()=>{
     const c=b.dataset.rosdelcok;
     armed=null; rosOpen=null;
-    cfg.items=cfg.items.filter(i=>i.cls!==c);
-    if(cfg.roster)delete cfg.roster[c];
-    if(cfg.teachers)delete cfg.teachers[c];
-    if(cfg.books)delete cfg.books[c];
-    await saveCfg(); render(); toast(c+' 반을 지웠어요');
+    const hit=x=>x===c;                       // 고른 반 하나만. 합반은 따로 지움
+    const gone=allClasses().filter(hit);
+    cfg.items=cfg.items.filter(i=>!hit(i.cls));
+    gone.forEach(x=>{
+      if(cfg.roster)delete cfg.roster[x];
+      if(cfg.teachers)delete cfg.teachers[x];
+      if(cfg.books)delete cfg.books[x];
+    });
+    cfg.removedCls=Array.from(new Set((cfg.removedCls||[]).concat(gone)));
+    await saveCfg(); render();
+    toast(gone.join(', ')+' 지웠어요');
   });
   const rosok=document.querySelector('[data-rosok]');
   if(rosok)rosok.onclick=async()=>{
