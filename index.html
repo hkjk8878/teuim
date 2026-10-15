@@ -91,6 +91,8 @@
   .names{display:flex;flex-wrap:wrap;gap:5px}
   .nm{font-family:inherit;font-size:13px;padding:5px 10px;border:1px solid var(--grid);border-radius:999px;background:#fff;color:var(--ink-soft);cursor:pointer}
   .nm.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .nm:active{transform:scale(.94);background:#DEDDD2}
+  .nm.on:active{background:#444}
   .nm.ok{background:#1F7A3D;color:#fff;border-color:#1F7A3D}
   .nm.danger{background:#FFE1DB;color:var(--red);border-color:var(--red)}
   .nmrow{display:flex;align-items:center;gap:5px;margin-bottom:5px}
@@ -242,7 +244,7 @@ const N={TWC:5,TPG:9,TPA:3,THA:6,TPP:10,TPV:7,TPD:7,'TPD-1':0,'TPD & TPD-1':7,TP
   TMX:9,TMP:8,TMG:8,TMB:7,TPF:4,TP1:5,TM1:8};
 
 const SEEDV=20;
-const APP_VER='1.70';
+const APP_VER='1.72';
 
 /* 반별 명단 — 시간표에서 읽음. 틀린 이름은 아래 ROSTER에서 고치면 됩니다. */
 const HOL0=[
@@ -877,6 +879,7 @@ function content(r){
 }
 
 function render(){
+  const keepY=(window.pageYOffset||document.documentElement.scrollTop||0);
   const d=parse(sel), today=ymd(new Date());
   $('#dtitle').innerHTML=(d.getMonth()+1)+'월 '+d.getDate()+'일<small>'+DAYK[d.getDay()]+'요일</small>';
   $('#dpick').value=sel;
@@ -885,6 +888,7 @@ function render(){
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.t===tab));
   $('#main').innerHTML= tab==='day'?viewDay():tab==='week'?viewWeek():tab==='cal'?viewCal():viewSet();
   wire();
+  if(keepY)window.scrollTo(0,keepY);
 }
 
 function rowHTML(r){
@@ -1273,9 +1277,7 @@ function itemFields(it){
   const f=(k,l,t)=>'<div><label>'+l+'</label><input type="'+t+'" data-k="'+k+'" data-id="'+it.id+'" value="'+esc(it[k]==null?'':it[k])+'"></div>';
   const numbered=it.kind==='book'||it.base!=null;
   return '<div class="fields">'
-   +'<div style="grid-column:1/-1"><label>반 <span style="color:var(--ink-soft)">(여러 반이 같이 보면 여러 개)</span></label>'
-     +'<div style="font-size:11px;color:var(--ink-soft);margin-bottom:4px">'
-       +'지금: <b>'+esc(it.cls)+'</b> · 눌러서 넣고 빼세요 (하나는 남아야 해요)</div>'
+   +'<div style="grid-column:1/-1"><label>반</label>'
      +'<div class="names">'
      +(function(){
         const cur=it.cls.split('&').map(x=>x.trim());
@@ -1888,8 +1890,6 @@ function wire(){
   };
   document.querySelectorAll('[data-k]').forEach(el=>el.onchange=async()=>{
     let it=cfg.items.find(x=>x.id===el.dataset.id); const k=el.dataset.k;
-    if(['choice','wd','rep','ul','book','fmt','src','label','ownBook','step','nFix','n'].indexOf(k)>=0)
-      it=splitAt(it);
     if(k==='nFix'){
       if(el.value){ it.nFix=true; if(!it.n)it.n=roster(it.cls).length||0 }
       else { delete it.nFix }
@@ -2055,8 +2055,7 @@ function wire(){
   });
   document.querySelectorAll('[data-icl]').forEach(b=>b.onclick=async()=>{
     const [id,c]=b.dataset.icl.split('|');
-    let it=cfg.items.find(x=>x.id===id); if(!it)return;
-    it=splitAt(it);
+    const it=cfg.items.find(x=>x.id===id); if(!it)return;
     let cur=it.cls.split('&').map(x=>x.trim()).filter(Boolean);
     const i=cur.indexOf(c);
     if(i>=0){ if(cur.length===1){toast('반은 하나는 있어야 해요');return} cur.splice(i,1) }
@@ -2067,8 +2066,7 @@ function wire(){
   });
   document.querySelectorAll('[data-wdtg]').forEach(b=>b.onclick=async()=>{
     const [id,w]=b.dataset.wdtg.split('|');
-    let it=cfg.items.find(x=>x.id===id); if(!it)return;
-    it=splitAt(it);
+    const it=cfg.items.find(x=>x.id===id); if(!it)return;
     const ws=(it.wds||[]).slice(), i=ws.indexOf(+w);
     if(i>=0)ws.splice(i,1); else ws.push(+w);
     it.wds=ws.sort(); await saveCfg(); render();
