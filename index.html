@@ -242,7 +242,7 @@ const N={TWC:5,TPG:9,TPA:3,THA:6,TPP:10,TPV:7,TPD:7,'TPD-1':0,'TPD&TPD-1':7,TPC:
   TMX:9,TMP:8,TMG:8,TMB:7,TPF:4,TP1:5,TM1:8};
 
 const SEEDV=18;
-const APP_VER='1.56';
+const APP_VER='1.57';
 
 /* 반별 명단 — 시간표에서 읽음. 틀린 이름은 아래 ROSTER에서 고치면 됩니다. */
 const HOL0=[
@@ -1753,6 +1753,10 @@ function wire(){
     const rp=g('#arp'); if(rp!==null)afRep=rp;
     const bk=g('#abk'); if(bk!==null)afBook=bk;
   };
+  document.querySelectorAll('[data-acl]').forEach(b=>b.onclick=()=>{
+    grabAF(); const k=b.dataset.acl;
+    afPick[k]=!afPick[k]; afSel={}; afBook=null; afN=''; armed=null; render();
+  });
   const once=document.querySelector('[data-once]');
   if(once)once.onclick=()=>{
     addOpen=true; afDate=sel; afKind='retest'; afPick={};
