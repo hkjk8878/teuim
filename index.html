@@ -236,13 +236,13 @@ const KIND={
 };
 
 /* 반별 인원 — 시간표 맨 아래 합계에서 읽음 */
-const N={TWC:5,TPG:9,TPA:3,THA:6,TPP:10,TPV:7,TPD:7,'TPD-1':0,'TPD & TPD-1':7,TPC:10,THI:10,TPN:7,
+const N={TWC:5,TPG:9,TPA:3,THA:6,TPP:10,TPV:7,TPD:7,'TPD-1':0,'TPD&TPD-1':7,TPC:10,THI:10,TPN:7,
   TPE:4,'TPE-1':6,'TPE & TPD':11,'TPE & TPE-1':10,
   TPH:10,TPT:9,TPW:10,TMA:3,TPQ:11,TPX:5,TPO:5,
   TMX:9,TMP:8,TMG:8,TMB:7,TPF:4,TP1:5,TM1:8};
 
-const SEEDV=17;
-const APP_VER='1.52';
+const SEEDV=18;
+const APP_VER='1.55';
 
 /* 반별 명단 — 시간표에서 읽음. 틀린 이름은 아래 ROSTER에서 고치면 됩니다. */
 const HOL0=[
@@ -270,7 +270,6 @@ const ROSTER0={
  TPV:['김도현','박지오','배수연','우윤슬','윤서영','이루다','임선우'],
  TPD:['안새빈','우지원','윤예준','이주원','이지유','장수아','전수아'],
  'TPD-1':[],
- 'TPD & TPD-1':[],
  TPC:['김민준','김사랑','김태민','박환희','서다은','안예준','오예나','오하은','이도현','이로은','이성우'],
  THI:['김예서','박서윤','박서은','안예서','이소은','이유나','인율','장가현','정소율','조민서'],
  TPN:['박서윤','박소이','위은서','이로아','최승희','최예현','홍선우'],
@@ -344,6 +343,29 @@ function merge(old){
     if(i.kind==='seq'&&keepBooks[i.cls])i.books=keepBooks[i.cls];
     if(i.kind==='seq'&&keepName[i.cls])i.book=keepName[i.cls];
   });
+
+  // 'TPD & TPD-1' → 'TPD&TPD-1' 로 합치기
+  (function(){
+    const A='TPD & TPD-1', B='TPD&TPD-1';
+    const R=old.roster||{};
+    const merged=(R[A]||[]).concat((R[B]||[]).filter(x=>(R[A]||[]).indexOf(x)<0));
+    if(R[A]!==undefined||R[B]!==undefined){
+      old.roster=Object.assign({},R);
+      delete old.roster[A];
+      if(merged.length)old.roster[B]=merged; else delete old.roster[B];
+    }
+    if(old.teachers&&old.teachers[A]){
+      old.teachers=Object.assign({},old.teachers);
+      if(!old.teachers[B])old.teachers[B]=old.teachers[A];
+      delete old.teachers[A];
+    }
+    if(old.books&&old.books[A]){
+      old.books=Object.assign({},old.books);
+      if(!old.books[B])old.books[B]=old.books[A];
+      delete old.books[A];
+    }
+    (old.items||[]).forEach(i=>{ if(i.cls===A)i.cls=B });
+  })();
 
   // 자체교재 반 순서를 한 번에 맞춤
   if((old.v||0)<14){
@@ -465,10 +487,10 @@ function seed(){
 const RULES={};
 
 let cfg=seed(), logs={}, sel=null, tab='day', memory=false, open={}, addOpen=false, editing={};
-let rosOpen=null, dayOpen={}, rosSecOpen=false, rosNew=null;
+let rosOpen=null, dayOpen={}, rosSecOpen=false, rosNew=null, rosMg='';
 let calMo=null, calDay=null, calAdd=null, calEdit=null;  // calAdd={start,end,ty,tx}
 let rtOpen=null, rtSel={}, rtDate='', rtWhat='', rtRound=1, rtKind='vocab', rtAll=false;
-let afCls='', afNew='', afKind='retest', afDate='', afN='', afWhat='', afNote='', afPrint='', afSel={}, afRound=1, afRKind='vocab', afRep='one', afBook=null;
+let afCls='', afNew='', afKind='retest', afDate='', afN='', afWhat='', afNote='', afPrint='', afSel={}, afRound=1, afRKind='vocab', afRep='one', afBook=null, afPick={};
 
 const pad=n=>String(n).padStart(2,'0');
 const ymd=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
@@ -621,7 +643,7 @@ function resolve(it,date,ignoreHol){
   return o;
 }
 const CLSORD=['TWC','TPG','TPA','THA',
-  'TPP','TPV','TPD','TPD-1','TPD & TPD-1','TPC','THI','TPN','TPE','TPE-1','TPE & TPE-1','TPE & TPD',
+  'TPP','TPV','TPD','TPD-1','TPD&TPD-1','TPC','THI','TPN','TPE','TPE-1','TPE & TPE-1','TPE & TPD',
   'TPH','TPT','TPW','TMA','TPQ','TPX','TPO',
   'TMX','TMP','TMG','TMB','TPF','TP1','TM1'];
 const CHOICES=[
@@ -1103,7 +1125,8 @@ function viewDay(){
 }
 
 function addForm(){
-  const cls = afCls==='__new' ? afNew.trim().toUpperCase() : afCls;
+  const picked0=Object.keys(afPick).filter(k=>afPick[k]).sort((a,b)=>cidx(a)-cidx(b));
+  const cls = picked0.join(' & ');
   const names = afKind==='retest' ? roster(cls) : [];
   const picked = Object.keys(afSel).filter(k=>afSel[k]);
   const auto = afKind==='retest' ? (picked.length||1) : headcount(cls);
@@ -1113,11 +1136,13 @@ function addForm(){
    +'<div><label>종류</label><select id="ak">'
      +CHOICES.map(c=>'<option value="'+c.v+'"'+(afKind===c.v?' selected':'')+'>'+c.t+'</option>').join('')
      +'</select></div>'
-   +'<div><label>반</label><select id="ac">'
-     +allClasses().map(c=>'<option value="'+esc(c)+'"'+(afCls===c?' selected':'')+'>'+esc(c)+' ('+(N[c]||0)+'명)</option>').join('')
-     +'<option value="__new"'+(afCls==='__new'?' selected':'')+'>직접 입력…</option></select>'
-     +(afCls==='__new'?'<input id="ac2" placeholder="반 이름" value="'+esc(afNew)+'" style="margin-top:4px">':'')
+   +'<div style="grid-column:1/-1"><label>반 <span style="color:var(--ink-soft)">(여러 반이 같이 보면 여러 개 고르세요)</span></label>'
+     +'<div class="names">'
+     +allClasses().filter(x=>x.indexOf('&')<0).map(x=>
+        '<button class="nm'+(afPick[x]?' on':'')+'" data-acl="'+esc(x)+'">'+esc(x)+'</button>').join('')
      +'</div>'
+     +'<div style="font-size:11px;color:var(--ink-soft);margin-top:4px">'
+     +(cls?'고른 반: <b>'+esc(cls)+'</b> · '+headcount(cls)+'명':'반을 골라주세요')+'</div></div>'
    +'<div><label>몇 장</label><input type="number" id="an" value="'+esc(afN!==''?afN:auto)+'"></div>'
    +(afKind==='retest'?'<div><label>차수</label><select id="ar">'
        +[1,2,3].map(v=>'<option value="'+v+'"'+(afRound===v?' selected':'')+'>'+roundName(v)+'</option>').join('')
@@ -1321,6 +1346,14 @@ function rosterSection(){
        +'<input id="rostch" value="'+esc(teacherOf(c))+'" placeholder="예: Daisy T"></div>'
        +'<div style="grid-column:1/-1"><label>이름 추가 (쉼표로 여러 명)</label>'
        +'<input id="rosin" placeholder="예: 김민준, 이서연"></div></div>'
+       +'<div class="fields" style="margin-top:8px"><div style="grid-column:1/-1">'
+       +'<label>이 반을 다른 반에 합치기 <span style="color:var(--ink-soft)">(명단·담임·시험이 옮겨가고 이 반은 없어져요)</span></label>'
+       +'<select id="rosmg"><option value="">고르기…</option>'
+       +allClasses().filter(x=>x!==c).map(x=>'<option value="'+esc(x)+'"'+(rosMg===x?' selected':'')+'>'+esc(x)+'</option>').join('')
+       +'</select></div></div>'
+       +(rosMg?'<div class="confirm"><span><b>'+esc(c)+'</b> 를 <b>'+esc(rosMg)+'</b> 에 합칠까요?</span>'
+         +'<button class="btn danger" data-rosmgok="'+esc(c)+'|'+esc(rosMg)+'">합치기</button>'
+         +'<button class="btn ghost" data-rosmgno="1">취소</button></div>':'')
        +'<div class="toolbar" style="margin:8px 0 0">'
        +'<button class="btn" data-rosadd="'+esc(c)+'">저장</button>'
        +'<button class="btn danger" data-rosdelc="'+esc(c)+'">반 삭제</button>'
@@ -1711,8 +1744,6 @@ function wire(){
     const g=id=>{const e=document.querySelector(id);return e?e.value:null};
     const v=g('#ad'); if(v!==null)afDate=v;
     const k=g('#ak'); if(k!==null)afKind=k;
-    const c=g('#ac'); if(c!==null)afCls=c;
-    const c2=g('#ac2'); if(c2!==null)afNew=c2;
     const n=g('#an'); if(n!==null)afN=n;
     const w=g('#at'); if(w!==null)afWhat=w;
     const o=g('#ao'); if(o!==null)afNote=o;
@@ -1724,12 +1755,12 @@ function wire(){
   };
   const once=document.querySelector('[data-once]');
   if(once)once.onclick=()=>{
-    addOpen=true; afDate=sel; afKind='retest'; afCls=afCls||allClasses()[0];
-    afNew=''; afN=''; afWhat=''; afNote=''; afPrint=''; afSel={}; afRound=1; afRKind='vocab'; afRep='one'; afBook=null; render();
+    addOpen=true; afDate=sel; afKind='retest'; afPick={};
+    afNew=''; afN=''; afWhat=''; afNote=''; afPrint=''; afSel={}; afRound=1; afRKind='vocab'; afRep='one'; afBook=null; armed=null; render();
   };
-  ['#ac','#ak','#ar','#arw','#arp','#ad'].forEach(id=>{
+  ['#ak','#ar','#arw','#arp','#ad'].forEach(id=>{
     const el=document.querySelector(id);
-    if(el)el.onchange=()=>{grabAF(); if(id==='#ac'){afSel={}; afBook=null} afN=''; armed=null; render()};
+    if(el)el.onchange=()=>{grabAF(); afN=''; armed=null; render()};
   });
   document.querySelectorAll('[data-afn]').forEach(b=>b.onclick=()=>{
     grabAF(); const k=b.dataset.afn; afSel[k]=!afSel[k]; afN=''; render();
@@ -1739,7 +1770,7 @@ function wire(){
   const ok=document.querySelector('[data-addok]');
   if(ok)ok.onclick=async()=>{
     grabAF();
-    const c = afCls==='__new' ? afNew.trim().toUpperCase() : afCls;
+    const c=Object.keys(afPick).filter(k=>afPick[k]).sort((a,b)=>cidx(a)-cidx(b)).join(' & ');
     if(!c){toast('반을 골라주세요');return}
     if(!afDate){toast('날짜를 골라주세요');return}
     const dupRows=(function(){ const k=sel; sel=afDate||sel;
@@ -1901,7 +1932,7 @@ function wire(){
     editing={}; rosOpen=null; armed=null; render();
   });
   document.querySelectorAll('[data-ros]').forEach(el=>el.onclick=()=>{
-    rosOpen=(rosOpen===el.dataset.ros)?null:el.dataset.ros; armed=null; render();
+    rosOpen=(rosOpen===el.dataset.ros)?null:el.dataset.ros; armed=null; rosMg=''; render();
   });
   const rosno=document.querySelector('[data-rosno]');
   if(rosno)rosno.onclick=()=>{rosOpen=null;render()};
@@ -1926,6 +1957,24 @@ function wire(){
     if(i>=0)ws.splice(i,1); else ws.push(+w);
     it.wds=ws.sort(); await saveCfg(); render();
   });
+  const rmg=document.querySelector('#rosmg');
+  if(rmg)rmg.onchange=()=>{rosMg=rmg.value;render()};
+  const rmgno=document.querySelector('[data-rosmgno]');
+  if(rmgno)rmgno.onclick=()=>{rosMg='';render()};
+  const rmgok=document.querySelector('[data-rosmgok]');
+  if(rmgok)rmgok.onclick=async()=>{
+    const [from,to]=rmgok.dataset.rosmgok.split('|');
+    const cur=(roster(to)||[]).slice();
+    (roster(from)||[]).forEach(nm=>{ if(cur.indexOf(nm)<0)cur.push(nm) });
+    setRoster(to,cur);
+    if(cfg.roster)delete cfg.roster[from];
+    cfg.teachers=cfg.teachers||{};
+    if(cfg.teachers[from]){ if(!cfg.teachers[to])cfg.teachers[to]=cfg.teachers[from]; delete cfg.teachers[from] }
+    cfg.books=cfg.books||{};
+    if(cfg.books[from]){ if(!cfg.books[to])cfg.books[to]=cfg.books[from]; delete cfg.books[from] }
+    cfg.items.forEach(i=>{ if(i.cls===from)i.cls=to });
+    rosMg=''; rosOpen=to; await saveCfg(); render(); toast(from+' 를 '+to+' 에 합쳤어요');
+  };
   document.querySelectorAll('[data-nmmove]').forEach(el=>el.onchange=async()=>{
     const [c,nm]=el.dataset.nmmove.split('|'), to=el.value;
     if(!to){render();return}
