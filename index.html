@@ -241,8 +241,8 @@ const N={TWC:5,TPG:9,TPA:3,THA:6,TPP:10,TPV:7,TPD:7,TPC:10,THI:10,TPN:7,
   TPH:10,TPT:9,TPW:10,TMA:3,TPQ:11,TPX:5,TPO:5,
   TMX:9,TMP:8,TMG:8,TMB:7,TPF:4,TP1:5,TM1:8};
 
-const SEEDV=14;
-const APP_VER='1.47';
+const SEEDV=16;
+const APP_VER='1.50';
 
 /* 반별 명단 — 시간표에서 읽음. 틀린 이름은 아래 ROSTER에서 고치면 됩니다. */
 const HOL0=[
@@ -297,13 +297,24 @@ function roster(cls){
   return out;
 }
 
+const skeyOf=i=>i.skey||[i.cls,i.kind,i.fmt||'',(i.once||i.wd||(i.wds||[]).join(''))].join('#');
 function merge(old){
   const fresh=seed();
-  const sig=i=>[i.cls,i.once||('w'+i.wd),i.kind,i.fmt||'',i.book||''].join('|');
+  // 같은 열쇠가 둘 이상이면 하나만 남김
+  const dedup={}, kept=[];
+  (old.items||[]).forEach(i=>{
+    const k2=skeyOf(i);
+    if(/^[umkr]/.test(i.id||'')){ kept.push(i); return }   // 직접 넣은 건 그대로
+    if(dedup[k2])return;
+    dedup[k2]=1; kept.push(i);
+  });
+  old=Object.assign({}, old, {items:kept});
   const have={};
-  (old.items||[]).forEach(i=>{ have[sig(i)]=1 });
-  // 예전 것은 전부 그대로 두고, 새로 생긴 것만 더함
-  const add=fresh.items.filter(i=>!have[sig(i)]);
+  kept.forEach(i=>{ have[skeyOf(i)]=1 });
+  const gone={};
+  (old.removedKeys||[]).forEach(k2=>{ gone[k2]=1 });
+  // 예전 것은 그대로 두고, 새로 생긴 것만 더함 (지운 건 되살리지 않음)
+  const add=fresh.items.filter(i=>!have[skeyOf(i)]&&!gone[skeyOf(i)]);
   // 자체교재: 요일 고정 → 순서대로 로 바꾸기 (적어둔 교재 기록은 이어받음)
   const oldSelf=(old.items||[]).filter(i=>i.noprint&&i.kind==='book'
     &&(i.fmt==='영단어만 쓰기'||i.fmt==='뜻만 쓰기'));
@@ -315,8 +326,15 @@ function merge(old){
   });
   const seqCls={}; fresh.items.filter(i=>i.kind==='seq').forEach(i=>seqCls[i.cls]=1);
   old=Object.assign({}, old, {items:(old.items||[]).filter(i=>!(
-    (i.noprint&&i.kind==='book'&&(i.fmt==='영단어만 쓰기'||i.fmt==='뜻만 쓰기')&&seqCls[i.cls])
+    (seqCls[i.cls] && i.noprint && i.kind!=='seq' && !i.once)   // 자체교재 반의 옛 항목
     || (i.cls==='TP1'&&i.kind==='blank'&&i.wd===4)))});
+  // 같은 반에 '순서대로'가 둘 이상이면 하나만 남김
+  const seenSeq={};
+  old=Object.assign({}, old, {items:(old.items||[]).filter(i=>{
+    if(i.kind!=='seq')return true;
+    if(seenSeq[i.cls])return false;
+    seenSeq[i.cls]=1; return true;
+  })});
   fresh.items.forEach(i=>{
     if(i.kind==='seq'&&keepBooks[i.cls])i.books=keepBooks[i.cls];
     if(i.kind==='seq'&&keepName[i.cls])i.book=keepName[i.cls];
@@ -357,7 +375,11 @@ function merge(old){
 
 function seed(){
   let k=0;
-  const A=o=>Object.assign({id:'s'+(++k),sure:true,off:false,n:N[o.cls]},o);
+  const A=o=>{
+    const it=Object.assign({id:'s'+(++k),sure:true,off:false,n:N[o.cls]},o);
+    it.skey=[it.cls,it.kind,it.fmt||'',(it.once||it.wd||(it.wds||[]).join(''))].join('#');
+    return it;
+  };
   const B0='2000-01-01';
   const books={};
   const B=(cls,name)=>{ books[cls]={}; books[cls][B0]=name };
@@ -556,7 +578,7 @@ function seqIndex(it,date){
   let d=it.anchor, k=0, g=0;
   while(d<date && g++<800){
     const w=parse(d).getDay();
-    if(wds.indexOf(w)>=0 && !isHol(d) && !(it.skip||[]).includes(d) && !(it.hide||[]).includes(d)) k++;
+    if(wds.indexOf(w)>=0 && !isHol(d) && !(it.skip||[]).includes(d)) k++;
     d=shift(d,1);
   }
   return (it.phase||0)+k;
@@ -1108,7 +1130,21 @@ function addForm(){
         + '</div>'
       : '<div style="font-size:11px;color:var(--ink-soft);margin:8px 0 0">이 반은 명단이 없어요. 위 칸에 이름을 적어주세요.</div>';
   }
-  h+='<div class="toolbar"><button class="btn" data-addok="1">추가</button>'
+  const already = cls ? (function(){
+    const k=sel; sel=afDate||sel;
+    const rows=forDate(sel).filter(r=>r.cls===cls);
+    sel=k; return rows;
+  })() : [];
+  const sameKind = already.some(r=>r.kind===choice(afKind).kind);
+  if(already.length){
+    h+='<div class="rule" style="margin:10px 0 0'+(sameKind?';border-left-color:var(--red);background:#FFF1EE':'')+'">'
+     +'<b>'+esc(cls)+'</b> 은 '+esc(d2s(afDate||sel))+' 에 이미 이게 있어요<br>'
+     +already.map(r=>'· '+content(r).replace(/<[^>]+>/g,'')).join('<br>')
+     +(sameKind?'<br><b>같은 종류예요. 그래도 넣으면 두 개가 됩니다.</b>':'')
+     +'</div>';
+  }
+  h+='<div class="toolbar"><button class="btn" data-addok="1">'
+   +(sameKind&&armed==='dup'?'그래도 넣기':'추가')+'</button>'
    +'<button class="btn ghost" data-addcancel="1">취소</button></div></div>';
   return h;
 }
@@ -1551,6 +1587,9 @@ function wire(){
       edt=null; await saveCfg(); render(); toast('바꿨어요'); return;
     }
     if(t==='del'){
+      if(!/^[umkr]/.test(it.id||'')){
+        cfg.removedKeys=(cfg.removedKeys||[]).concat([skeyOf(it)]);
+      }
       cfg.items=cfg.items.filter(x=>x.id!==it.id); edt=null; await saveCfg(); render(); return;
     }
     if(t==='off'||t==='move'){
@@ -1666,7 +1705,7 @@ function wire(){
   };
   ['#ac','#ak','#ar','#arw','#arp','#ad'].forEach(id=>{
     const el=document.querySelector(id);
-    if(el)el.onchange=()=>{grabAF(); if(id==='#ac'){afSel={}; afBook=null} afN=''; render()};
+    if(el)el.onchange=()=>{grabAF(); if(id==='#ac'){afSel={}; afBook=null} afN=''; armed=null; render()};
   });
   document.querySelectorAll('[data-afn]').forEach(b=>b.onclick=()=>{
     grabAF(); const k=b.dataset.afn; afSel[k]=!afSel[k]; afN=''; render();
@@ -1679,6 +1718,10 @@ function wire(){
     const c = afCls==='__new' ? afNew.trim().toUpperCase() : afCls;
     if(!c){toast('반을 골라주세요');return}
     if(!afDate){toast('날짜를 골라주세요');return}
+    const dupRows=(function(){ const k=sel; sel=afDate||sel;
+      const rows=forDate(sel).filter(r=>r.cls===c&&r.kind===choice(afKind).kind); sel=k; return rows })();
+    if(dupRows.length&&armed!=='dup'){ armed='dup'; render(); toast('이미 있어요. 한 번 더 누르면 넣습니다'); return }
+    armed=null;
     const picked=Object.keys(afSel).filter(k=>afSel[k]);
     const nv=parseInt(afN,10);
     const n=isNaN(nv)?(afKind==='retest'?(picked.length||1):(roster(c).length||N[c]||0)):nv;
@@ -1738,6 +1781,8 @@ function wire(){
   if(delok)delok.onclick=async()=>{
     const id=delok.dataset.delok;
     armed=null; editing={};
+    const gone=cfg.items.find(x=>x.id===id);
+    if(gone&&!/^[umkr]/.test(gone.id||''))cfg.removedKeys=(cfg.removedKeys||[]).concat([skeyOf(gone)]);
     cfg.items=cfg.items.filter(x=>x.id!==id);
     await saveCfg(); render(); toast('지웠어요');
   };
