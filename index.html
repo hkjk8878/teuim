@@ -242,7 +242,7 @@ const N={TWC:5,TPG:9,TPA:3,THA:6,TPP:10,TPV:7,TPD:7,'TPD-1':0,'TPD&TPD-1':7,TPC:
   TMX:9,TMP:8,TMG:8,TMB:7,TPF:4,TP1:5,TM1:8};
 
 const SEEDV=18;
-const APP_VER='1.59';
+const APP_VER='1.61';
 
 /* 반별 명단 — 시간표에서 읽음. 틀린 이름은 아래 ROSTER에서 고치면 됩니다. */
 const HOL0=[
@@ -1236,12 +1236,16 @@ function itemFields(it){
   const f=(k,l,t)=>'<div><label>'+l+'</label><input type="'+t+'" data-k="'+k+'" data-id="'+it.id+'" value="'+esc(it[k]==null?'':it[k])+'"></div>';
   const numbered=it.kind==='book'||it.base!=null;
   return '<div class="fields">'
-   +'<div><label>반</label><select data-k="cls" data-id="'+it.id+'">'
-     +(allClasses().indexOf(it.cls)<0?'<option value="'+esc(it.cls)+'" selected>'+esc(it.cls)+'</option>':'')
-     +allClasses().map(c=>'<option value="'+esc(c)+'"'+(it.cls===c?' selected':'')+'>'+esc(c)+'</option>').join('')
-     +'<option value="__new">새 반 직접 넣기…</option></select>'
-     +(allClasses().indexOf(it.cls)<0?'<input data-k="cls" data-id="'+it.id+'" value="'+esc(it.cls)+'" style="margin-top:4px" placeholder="반 이름">':'')
-     +'</div>'
+   +'<div style="grid-column:1/-1"><label>반 <span style="color:var(--ink-soft)">(여러 반이 같이 보면 여러 개)</span></label>'
+     +'<div class="names">'
+     +(function(){
+        const cur=it.cls.split('&').map(x=>x.trim());
+        const list=allClasses().filter(x=>x.indexOf('&')<0);
+        cur.forEach(c=>{ if(list.indexOf(c)<0)list.push(c) });
+        return list.sort((a,b)=>cidx(a)-cidx(b)).map(x=>
+          '<button class="nm'+(cur.indexOf(x)>=0?' on':'')+'" data-icl="'+it.id+'|'+esc(x)+'">'+esc(x)+'</button>').join('');
+      })()
+     +'</div></div>'
    +'<div><label>인원</label><select data-k="nFix" data-id="'+it.id+'">'
      +'<option value=""'+(it.nFix?'':' selected')+'>명단에서 자동 ('+headcount(it.cls)+'명)</option>'
      +'<option value="1"'+(it.nFix?' selected':'')+'>직접 정하기</option></select>'
@@ -1290,12 +1294,17 @@ function itemFields(it){
 }
 function setRow(it){
   const on=!!editing[it.id];
-  return '<div class="srow'+(it.off?' isoff':'')+(on?' open':'')+'">'
+  const dead=it.off||it.until;
+  return '<div class="srow'+(dead?' isoff':'')+(on?' open':'')+'">'
    +'<div class="sline" data-edit="'+it.id+'">'
    +'<b>'+esc(it.cls)+'</b><span>'+esc(itemSummary(it))+'</span>'
    +'<em>'+((it.kind==='retest'||it.nFix)?(it.n||0):headcount(it.cls))+'명</em>'
-   +(it.off?'<u class="warn">안 봄</u>':'')+(it.sure===false?'<u class="warn">확인</u>':'')
+   +(it.off?'<u class="warn">안 봄</u>':'')
+   +(it.until?'<u class="warn">'+d2s(it.until)+'부터 없음</u>':'')
+   +(it.sure===false?'<u class="warn">확인</u>':'')
    +'<i>'+(on?'▲':'수정')+'</i></div>'
+   +(dead?'<div class="confirm" style="margin:0 10px 10px"><span>지금은 안 나오는 시험이에요</span>'
+     +'<button class="btn ghost" data-revive="'+it.id+'">다시 살리기</button></div>':'')
    +(on?itemFields(it):'')+'</div>';
 }
 function rosterSection(){
@@ -1982,6 +1991,17 @@ function wire(){
     cur[+i]=v; setRoster(c,cur);
     await saveCfg(); render(); toast('고쳤어요');
   });
+  document.querySelectorAll('[data-icl]').forEach(b=>b.onclick=async()=>{
+    const [id,c]=b.dataset.icl.split('|');
+    const it=cfg.items.find(x=>x.id===id); if(!it)return;
+    let cur=it.cls.split('&').map(x=>x.trim()).filter(Boolean);
+    const i=cur.indexOf(c);
+    if(i>=0){ if(cur.length===1){toast('반은 하나는 있어야 해요');return} cur.splice(i,1) }
+    else cur.push(c);
+    it.cls=cur.sort((a,b)=>cidx(a)-cidx(b)).join(' & ');
+    if(!it.nFix)it.n=headcount(it.cls);
+    await saveCfg(); render();
+  });
   document.querySelectorAll('[data-wdtg]').forEach(b=>b.onclick=async()=>{
     const [id,w]=b.dataset.wdtg.split('|');
     const it=cfg.items.find(x=>x.id===id); if(!it)return;
@@ -2073,7 +2093,9 @@ function wire(){
     await saveCfg(); render(); toast(add.length+'명 넣었어요');
   });
   document.querySelectorAll('[data-edit]').forEach(el=>el.onclick=()=>{
-    const id=el.dataset.edit; editing={}; editing[id]=!editing[id]; render();
+    const id=el.dataset.edit, was=!!editing[id];
+    editing={}; if(!was)editing[id]=true;       // 한 번 더 누르면 닫힘
+    armed=null; render();
   });
   document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>{editing={};render()});
   document.querySelectorAll('[data-addday]').forEach(b=>b.onclick=async()=>{
