@@ -236,13 +236,13 @@ const KIND={
 };
 
 /* 반별 인원 — 시간표 맨 아래 합계에서 읽음 */
-const N={TWC:5,TPG:9,TPA:3,THA:6,TPP:10,TPV:7,TPD:7,TPC:10,THI:10,TPN:7,
+const N={TWC:5,TPG:9,TPA:3,THA:6,TPP:10,TPV:7,TPD:7,'TPD-1':0,'TPD & TPD-1':7,TPC:10,THI:10,TPN:7,
   TPE:4,'TPE-1':6,'TPE & TPD':11,'TPE & TPE-1':10,
   TPH:10,TPT:9,TPW:10,TMA:3,TPQ:11,TPX:5,TPO:5,
   TMX:9,TMP:8,TMG:8,TMB:7,TPF:4,TP1:5,TM1:8};
 
-const SEEDV=16;
-const APP_VER='1.50';
+const SEEDV=17;
+const APP_VER='1.51';
 
 /* 반별 명단 — 시간표에서 읽음. 틀린 이름은 아래 ROSTER에서 고치면 됩니다. */
 const HOL0=[
@@ -269,6 +269,8 @@ const ROSTER0={
  TPP:['강설아','고은지','김라희','김리아','김사랑','박세빈','이소윤','진은솔','진해솔','한세아'],
  TPV:['김도현','박지오','배수연','우윤슬','윤서영','이루다','임선우'],
  TPD:['안새빈','우지원','윤예준','이주원','이지유','장수아','전수아'],
+ 'TPD-1':[],
+ 'TPD & TPD-1':[],
  TPC:['김민준','김사랑','김태민','박환희','서다은','안예준','오예나','오하은','이도현','이로은','이성우'],
  THI:['김예서','박서윤','박서은','안예서','이소은','이유나','인율','장가현','정소율','조민서'],
  TPN:['박서윤','박소이','위은서','이로아','최승희','최예현','홍선우'],
@@ -291,10 +293,13 @@ const ROSTER0={
 };
 function roster(cls){
   const R=(cfg&&cfg.roster)||ROSTER0;
-  if(R[cls])return R[cls];
-  let out=[];
-  cls.split('&').map(x=>x.trim()).forEach(p=>{ if(R[p]) out=out.concat(R[p]) });
-  return out;
+  if(R[cls]&&R[cls].length)return R[cls];
+  if(cls.indexOf('&')>=0){
+    let out=[];
+    cls.split('&').map(x=>x.trim()).forEach(p=>{ if(R[p]) out=out.concat(R[p]) });
+    if(out.length)return out;
+  }
+  return R[cls]||[];
 }
 
 const skeyOf=i=>i.skey||[i.cls,i.kind,i.fmt||'',(i.once||i.wd||(i.wds||[]).join(''))].join('#');
@@ -616,7 +621,7 @@ function resolve(it,date,ignoreHol){
   return o;
 }
 const CLSORD=['TWC','TPG','TPA','THA',
-  'TPP','TPV','TPD','TPC','THI','TPN','TPE','TPE-1','TPE & TPE-1','TPE & TPD',
+  'TPP','TPV','TPD','TPD-1','TPD & TPD-1','TPC','THI','TPN','TPE','TPE-1','TPE & TPE-1','TPE & TPD',
   'TPH','TPT','TPW','TMA','TPQ','TPX','TPO',
   'TMX','TMP','TMG','TMB','TPF','TP1','TM1'];
 const CHOICES=[
