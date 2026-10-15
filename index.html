@@ -243,8 +243,8 @@ const N={TWC:5,TPG:9,TPA:3,THA:6,TPP:10,TPV:7,TPD:7,'TPD-1':0,'TPD & TPD-1':7,TP
   TPH:10,TPT:9,TPW:10,TMA:3,TPQ:11,TPX:5,TPO:5,
   TMX:9,TMP:8,TMG:8,TMB:7,TPF:4,TP1:5,TM1:8};
 
-const SEEDV=20;
-const APP_VER='1.72';
+const SEEDV=21;
+const APP_VER='1.73';
 
 /* 반별 명단 — 시간표에서 읽음. 틀린 이름은 아래 ROSTER에서 고치면 됩니다. */
 const HOL0=[
@@ -336,7 +336,8 @@ function merge(old){
   const gone={};
   (old.removedKeys||[]).forEach(k2=>{ gone[k2]=1 });
   // 예전 것은 그대로 두고, 새로 생긴 것만 더함 (지운 건 되살리지 않음)
-  const add=fresh.items.filter(i=>!have[skeyOf(i)]&&!gone[skeyOf(i)]);
+  const add=fresh.items.filter(i=>!have[skeyOf(i)]&&!gone[skeyOf(i)])
+    .map(i=>Object.assign({},i,{id:'n'+Math.random().toString(36).slice(2,9)}));
   // 자체교재: 요일 고정 → 순서대로 로 바꾸기 (적어둔 교재 기록은 이어받음)
   const oldSelf=(old.items||[]).filter(i=>i.noprint&&i.kind==='book'
     &&(i.fmt==='영단어만 쓰기'||i.fmt==='뜻만 쓰기'));
@@ -427,6 +428,14 @@ function merge(old){
     return i;
   }).filter(i=>liveCls(i.cls));
   out.removedCls=(old.removedCls||[]).slice();
+  // 같은 번호를 쓰는 줄이 있으면 새 번호를 준다
+  (function(){
+    const used={}, mk=()=>{ let v; do{ v='x'+Math.random().toString(36).slice(2,9) }while(used[v]); return v };
+    out.items.forEach(i=>{
+      if(!i.id||used[i.id]) i.id=mk();
+      used[i.id]=1;
+    });
+  })();
   out.books=Object.assign({}, fresh.books, old.books||{});
   out.roster=Object.assign({}, fresh.roster, old.roster||{});
   out.teachers=Object.assign({}, fresh.teachers, old.teachers||{});
