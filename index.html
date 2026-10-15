@@ -236,13 +236,13 @@ const KIND={
 };
 
 /* 반별 인원 — 시간표 맨 아래 합계에서 읽음 */
-const N={TWC:5,TPG:9,TPA:3,THA:6,TPP:10,TPV:7,TPD:7,'TPD-1':0,'TPD&TPD-1':7,TPC:10,THI:10,TPN:7,
+const N={TWC:5,TPG:9,TPA:3,THA:6,TPP:10,TPV:7,TPD:7,'TPD-1':0,'TPD & TPD-1':7,TPC:10,THI:10,TPN:7,
   TPE:4,'TPE-1':6,'TPE & TPD':11,'TPE & TPE-1':10,
   TPH:10,TPT:9,TPW:10,TMA:3,TPQ:11,TPX:5,TPO:5,
   TMX:9,TMP:8,TMG:8,TMB:7,TPF:4,TP1:5,TM1:8};
 
-const SEEDV=19;
-const APP_VER='1.67';
+const SEEDV=20;
+const APP_VER='1.70';
 
 /* 반별 명단 — 시간표에서 읽음. 틀린 이름은 아래 ROSTER에서 고치면 됩니다. */
 const HOL0=[
@@ -270,6 +270,7 @@ const ROSTER0={
  TPV:['김도현','박지오','배수연','우윤슬','윤서영','이루다','임선우'],
  TPD:['안새빈','우지원','윤예준','이주원','이지유','장수아','전수아'],
  'TPD-1':[],
+ 'TPD & TPD-1':[],
  TPC:['김민준','김사랑','김태민','박환희','서다은','안예준','오예나','오하은','이도현','이로은','이성우'],
  THI:['김예서','박서윤','박서은','안예서','이소은','이유나','인율','장가현','정소율','조민서'],
  TPN:['박서윤','박소이','위은서','이로아','최승희','최예현','홍선우'],
@@ -301,6 +302,21 @@ function roster(cls){
   return R[cls]||[];
 }
 
+const normCls=x=>String(x||'').split('&').map(y=>y.trim()).filter(Boolean).join(' & ');
+function splitAt(it){
+  // 이미 지나온 시험을 고치면: 예전 것은 오늘까지만 두고, 오늘부터 쓸 사본을 만든다
+  if(it.once)return it;
+  if(it.from&&it.from>=sel)return it;
+  if(it.until&&it.until<=sel)return it;
+  if(it.anchor&&it.anchor>=sel)return it;
+  const cp=Object.assign({},it);
+  cp.id='k'+Date.now()+Math.floor(Math.random()*1000);
+  cp.from=sel; delete cp.until;
+  it.until=sel;
+  cfg.items.push(cp);
+  editing={}; editing[cp.id]=true;
+  return cp;
+}
 const skeyOf=i=>i.skey||[i.cls,i.kind,i.fmt||'',(i.once||i.wd||(i.wds||[]).join(''))].join('#');
 function merge(old){
   const fresh=seed();
@@ -346,7 +362,7 @@ function merge(old){
 
   // 'TPD & TPD-1' → 'TPD&TPD-1' 로 합치기
   (function(){
-    const A='TPD & TPD-1', B='TPD&TPD-1';
+    const A='TPD&TPD-1', B='TPD & TPD-1';
     const R=old.roster||{};
     const merged=(R[A]||[]).concat((R[B]||[]).filter(x=>(R[A]||[]).indexOf(x)<0));
     if(R[A]!==undefined||R[B]!==undefined){
@@ -381,6 +397,20 @@ function merge(old){
       }
     });
   }
+
+  // 반 이름 표기 통일: 'A&B' 와 'A & B' 를 하나로
+  (function(){
+    const fix=m=>{ if(!m)return m; const o={};
+      Object.keys(m).forEach(k=>{ const n=normCls(k);
+        if(o[n]===undefined)o[n]=m[k];
+        else if(Array.isArray(o[n])&&Array.isArray(m[k]))
+          m[k].forEach(v=>{ if(o[n].indexOf(v)<0)o[n].push(v) });
+      });
+      return o; };
+    old.roster=fix(old.roster); old.teachers=fix(old.teachers); old.books=fix(old.books);
+    (old.items||[]).forEach(i=>{ i.cls=normCls(i.cls) });
+    old.removedCls=(old.removedCls||[]).map(normCls);
+  })();
 
   const dead={}; (old.removedCls||[]).forEach(c=>dead[c]=1);
   const liveCls=x=>!dead[x];                  // 지운 반만. 합반은 따로
@@ -651,7 +681,7 @@ function resolve(it,date,ignoreHol){
   return o;
 }
 const CLSORD=['TWC','TPG','TPA','THA',
-  'TPP','TPV','TPD','TPD-1','TPD&TPD-1','TPC','THI','TPN','TPE','TPE-1','TPE & TPE-1','TPE & TPD',
+  'TPP','TPV','TPD','TPD-1','TPD & TPD-1','TPC','THI','TPN','TPE','TPE-1','TPE & TPE-1','TPE & TPD',
   'TPH','TPT','TPW','TMA','TPQ','TPX','TPO',
   'TMX','TMP','TMG','TMB','TPF','TP1','TM1'];
 const CHOICES=[
@@ -1135,7 +1165,7 @@ function viewDay(){
 
 function addForm(){
   const picked0=Object.keys(afPick).filter(k=>afPick[k]).sort((a,b)=>cidx(a)-cidx(b));
-  const cls = picked0.join(' & ');
+  const cls = normCls(picked0.join(' & '));
   const names = afKind==='retest' ? roster(cls) : [];
   const picked = Object.keys(afSel).filter(k=>afSel[k]);
   const auto = afKind==='retest' ? (picked.length||1) : headcount(cls);
@@ -1244,13 +1274,19 @@ function itemFields(it){
   const numbered=it.kind==='book'||it.base!=null;
   return '<div class="fields">'
    +'<div style="grid-column:1/-1"><label>반 <span style="color:var(--ink-soft)">(여러 반이 같이 보면 여러 개)</span></label>'
+     +'<div style="font-size:11px;color:var(--ink-soft);margin-bottom:4px">'
+       +'지금: <b>'+esc(it.cls)+'</b> · 눌러서 넣고 빼세요 (하나는 남아야 해요)</div>'
      +'<div class="names">'
      +(function(){
         const cur=it.cls.split('&').map(x=>x.trim());
         const list=allClasses().filter(x=>x.indexOf('&')<0);
         cur.forEach(c=>{ if(list.indexOf(c)<0)list.push(c) });
-        return list.sort((a,b)=>cidx(a)-cidx(b)).map(x=>
-          '<button class="nm'+(cur.indexOf(x)>=0?' on':'')+'" data-icl="'+it.id+'|'+esc(x)+'">'+esc(x)+'</button>').join('');
+        const only=cur.length===1;
+        return list.sort((a,b)=>cidx(a)-cidx(b)).map(x=>{
+          const on=cur.indexOf(x)>=0;
+          return '<button class="nm'+(on?' on':'')+'" data-icl="'+it.id+'|'+esc(x)+'"'
+            +(on&&only?' title="반은 하나는 있어야 해요"':'')+'>'+esc(x)+(on&&only?' ✓':'')+'</button>';
+        }).join('');
       })()
      +'</div></div>'
    +'<div><label>인원</label><select data-k="nFix" data-id="'+it.id+'">'
@@ -1816,7 +1852,7 @@ function wire(){
   const ok=document.querySelector('[data-addok]');
   if(ok)ok.onclick=async()=>{
     grabAF();
-    const c=Object.keys(afPick).filter(k=>afPick[k]).sort((a,b)=>cidx(a)-cidx(b)).join(' & ');
+    const c=normCls(Object.keys(afPick).filter(k=>afPick[k]).sort((a,b)=>cidx(a)-cidx(b)).join(' & '));
     if(!c){toast('반을 골라주세요');return}
     if(!afDate){toast('날짜를 골라주세요');return}
     const dupRows=(function(){ const k=sel; sel=afDate||sel;
@@ -1851,7 +1887,9 @@ function wire(){
     toast(d.slice(5)+' '+c+' 추가했어요');
   };
   document.querySelectorAll('[data-k]').forEach(el=>el.onchange=async()=>{
-    const it=cfg.items.find(x=>x.id===el.dataset.id), k=el.dataset.k;
+    let it=cfg.items.find(x=>x.id===el.dataset.id); const k=el.dataset.k;
+    if(['choice','wd','rep','ul','book','fmt','src','label','ownBook','step','nFix','n'].indexOf(k)>=0)
+      it=splitAt(it);
     if(k==='nFix'){
       if(el.value){ it.nFix=true; if(!it.n)it.n=roster(it.cls).length||0 }
       else { delete it.nFix }
@@ -2017,18 +2055,20 @@ function wire(){
   });
   document.querySelectorAll('[data-icl]').forEach(b=>b.onclick=async()=>{
     const [id,c]=b.dataset.icl.split('|');
-    const it=cfg.items.find(x=>x.id===id); if(!it)return;
+    let it=cfg.items.find(x=>x.id===id); if(!it)return;
+    it=splitAt(it);
     let cur=it.cls.split('&').map(x=>x.trim()).filter(Boolean);
     const i=cur.indexOf(c);
     if(i>=0){ if(cur.length===1){toast('반은 하나는 있어야 해요');return} cur.splice(i,1) }
     else cur.push(c);
-    it.cls=cur.sort((a,b)=>cidx(a)-cidx(b)).join(' & ');
+    it.cls=normCls(cur.sort((a,b)=>cidx(a)-cidx(b)).join(' & '));
     if(!it.nFix)it.n=headcount(it.cls);
-    await saveCfg(); render();
+    await saveCfg(); render(); toast(it.cls+' ('+headcount(it.cls)+'명)');
   });
   document.querySelectorAll('[data-wdtg]').forEach(b=>b.onclick=async()=>{
     const [id,w]=b.dataset.wdtg.split('|');
-    const it=cfg.items.find(x=>x.id===id); if(!it)return;
+    let it=cfg.items.find(x=>x.id===id); if(!it)return;
+    it=splitAt(it);
     const ws=(it.wds||[]).slice(), i=ws.indexOf(+w);
     if(i>=0)ws.splice(i,1); else ws.push(+w);
     it.wds=ws.sort(); await saveCfg(); render();
@@ -2066,14 +2106,14 @@ function wire(){
   if(rnn)rnn.onclick=()=>{rosNew=null;render()};
   const rno=document.querySelector('[data-rosnewok]');
   if(rno)rno.onclick=async()=>{
-    const v=((document.querySelector('#rosnew')||{}).value||'').trim().toUpperCase();
+    const v=normCls(((document.querySelector('#rosnew')||{}).value||'').trim().toUpperCase());
     if(!v){toast('반 이름을 넣어주세요');return}
     cfg.roster=cfg.roster||{};
     if(!cfg.roster[v])cfg.roster[v]=[];
     rosNew=null; rosOpen=v; await saveCfg(); render(); toast(v+' 반을 만들었어요');
   };
   document.querySelectorAll('[data-rosren]').forEach(el=>el.onchange=async()=>{
-    const old=el.dataset.rosren, v=el.value.trim().toUpperCase();
+    const old=el.dataset.rosren, v=normCls(el.value.trim().toUpperCase());
     if(!v||v===old){render();return}
     cfg.roster=cfg.roster||{};
     setRoster(v,roster(old)); delete cfg.roster[old];
