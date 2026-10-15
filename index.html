@@ -241,10 +241,10 @@ const KIND={
 const N={TWC:5,TPG:9,TPA:3,THA:6,TPP:10,TPV:7,TPD:7,'TPD-1':0,'TPD & TPD-1':7,TPC:10,THI:10,TPN:7,
   TPE:4,'TPE-1':6,'TPE & TPD':11,'TPE & TPE-1':10,
   TPH:10,TPT:9,TPW:10,TMA:3,TPQ:11,TPX:5,TPO:5,
-  TMX:9,TMP:8,TMG:8,TMB:7,TPF:4,TP1:5,TM1:8};
+  TMX:9,TMP:8,TMG:8,TMB:7,TPF:4,'TPF-1':0,TP1:5,TM1:8};
 
-const SEEDV=21;
-const APP_VER='1.73';
+const SEEDV=22;
+const APP_VER='1.76';
 
 /* 반별 명단 — 시간표에서 읽음. 틀린 이름은 아래 ROSTER에서 고치면 됩니다. */
 const HOL0=[
@@ -290,6 +290,7 @@ const ROSTER0={
  TMG:['김아론','박예솔','서준민','이은서','이채은','임현서','정승유','홍서현'],
  TMB:['김도운','김민지','김예준','김지원','김하준','백재하','이해인'],
  TPF:['김두현','성민재','장주희','조아영'],
+ 'TPF-1':[],
  TP1:['서지후','양준서','우시훈','이재준','최소윤'],
  TM1:['김예지','김지우','박윤호','박채은','백서연','이승민','정나은','최은지']
 };
@@ -385,6 +386,23 @@ function merge(old){
     }
     (old.items||[]).forEach(i=>{ if(i.cls===A)i.cls=B });
   })();
+
+  // TPF·TPF-1·TP1·TM1: 2026-10-20 부터 하루에 Day 하나씩
+  if((old.v||0)<22){
+    const D0='2026-10-20', BK={TPF:'워드마스터 수능 2000','TPF-1':'워드마스터 수능 2000',
+      TP1:'뜯중 1800',TM1:'뜯중 1800'};
+    ['TPF','TPF-1','TP1','TM1'].forEach(c=>{
+      const olds=(old.items||[]).filter(i=>i.cls===c&&i.kind==='seq'&&!(i.until&&i.until<=D0));
+      olds.forEach(i=>{ i.until=D0 });
+      const keep=olds[0]||{};
+      (old.items=old.items||[]).push({
+        id:'n'+Math.random().toString(36).slice(2,9), cls:c, kind:'seq',
+        book:keep.book||BK[c], books:keep.books, wds:[2,4],
+        anchor:D0, from:D0, base:2, phase:0,
+        pattern:['영단어·뜻 둘 다'], ul:'Day', noprint:true, sure:true, off:false
+      });
+    });
+  }
 
   // 자체교재 반 순서를 한 번에 맞춤
   if((old.v||0)<14){
@@ -521,14 +539,15 @@ function seed(){
   selfSeq('TMG','워드마스터 중등 실력',[1,3],'2026-10-14',6),
   selfSeq('TMB','뜯중 1200',[1,3],'2026-10-14',6),
   selfSeq('TPX','뜯중 1800',[2,4],'2026-10-13',1),
-  selfSeq('TPF','워드마스터 수능 2000',[2,4],'2026-10-13',1),
-  selfSeq('TM1','뜯중 1800',[2,4],'2026-10-13',1),
-  selfSeq('TP1','뜯중 1800',[2,4],'2026-10-13',1)
+  selfSeq('TPF','워드마스터 수능 2000',[2,4],'2026-10-20',2,['영단어·뜻 둘 다']),
+  selfSeq('TPF-1','워드마스터 수능 2000',[2,4],'2026-10-20',2,['영단어·뜻 둘 다']),
+  selfSeq('TM1','뜯중 1800',[2,4],'2026-10-20',2,['영단어·뜻 둘 다']),
+  selfSeq('TP1','뜯중 1800',[2,4],'2026-10-20',2,['영단어·뜻 둘 다'])
   ]};
 
-  function selfSeq(cls,book,wds,anchor,base){
+  function selfSeq(cls,book,wds,anchor,base,pat){
     return A({cls,kind:'seq',book,wds,anchor,base:base||1,phase:0,
-      pattern:['영단어만 쓰기','뜻만 쓰기'],ul:'Day',noprint:true});
+      pattern:pat||['영단어만 쓰기','뜻만 쓰기'],ul:'Day',noprint:true});
   }
 }
 
@@ -694,7 +713,7 @@ function resolve(it,date,ignoreHol){
 const CLSORD=['TWC','TPG','TPA','THA',
   'TPP','TPV','TPD','TPD-1','TPD & TPD-1','TPC','THI','TPN','TPE','TPE-1','TPE & TPE-1','TPE & TPD',
   'TPH','TPT','TPW','TMA','TPQ','TPX','TPO',
-  'TMX','TMP','TMG','TMB','TPF','TP1','TM1'];
+  'TMX','TMP','TMG','TMB','TPF','TPF-1','TP1','TM1'];
 const CHOICES=[
  {v:'retest',t:'재시험',      kind:'retest'},
  {v:'vocab', t:'단어',        kind:'vocab'},
@@ -2226,6 +2245,7 @@ $('#imgin').onchange=async e=>{
   }catch(err){ toast('사진 실패 — '+(err&&err.message?err.message:'')) }
 };
 $('#lb').onclick=()=>$('#lb').classList.remove('on');
+
 
 let tt;
 function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),1500)}
