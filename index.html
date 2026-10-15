@@ -241,8 +241,8 @@ const N={TWC:5,TPG:9,TPA:3,THA:6,TPP:10,TPV:7,TPD:7,'TPD-1':0,'TPD&TPD-1':7,TPC:
   TPH:10,TPT:9,TPW:10,TMA:3,TPQ:11,TPX:5,TPO:5,
   TMX:9,TMP:8,TMG:8,TMB:7,TPF:4,TP1:5,TM1:8};
 
-const SEEDV=18;
-const APP_VER='1.64';
+const SEEDV=19;
+const APP_VER='1.67';
 
 /* 반별 명단 — 시간표에서 읽음. 틀린 이름은 아래 ROSTER에서 고치면 됩니다. */
 const HOL0=[
@@ -494,7 +494,7 @@ function seed(){
 const RULES={};
 
 let cfg=seed(), logs={}, sel=null, tab='day', memory=false, open={}, addOpen=false, editing={};
-let rosOpen=null, dayOpen={}, rosSecOpen=false, rosNew=null, rosMg='';
+let rosOpen=null, dayOpen={}, rosSecOpen=false, rosNew=null, rosMg='', showDead=false;
 let calMo=null, calDay=null, calAdd=null, calEdit=null;  // calAdd={start,end,ty,tx}
 let rtOpen=null, rtSel={}, rtDate='', rtWhat='', rtRound=1, rtKind='vocab', rtAll=false;
 let afCls='', afNew='', afKind='retest', afDate='', afN='', afWhat='', afNote='', afPrint='', afSel={}, afRound=1, afRKind='vocab', afRep='one', afBook=null, afPick={}, afImgs=[];
@@ -1293,11 +1293,7 @@ function itemFields(it){
    +((it.off||it.until)?'<button class="mini" data-revive="'+it.id+'">다시 살리기</button>':'')
    +'<button class="mini" data-del="'+it.id+'">삭제</button>'
    +'<button class="mini" data-close="'+it.id+'">닫기</button></div>'
-   +(armed==='d'+it.id
-     ? '<div class="confirm"><span>'+(it.once?'이 시험을 지울까요?':'오늘('+d2s(sel)+')부터 없앨까요? 지난 기록은 남아요.')+'</span>'
-       +'<button class="btn danger" data-delok="'+it.id+'">지우기</button>'
-       +'<button class="btn ghost" data-delno="1">취소</button></div>'
-     : '');
+   ;
 }
 function setRow(it){
   const on=!!editing[it.id];
@@ -1310,6 +1306,12 @@ function setRow(it){
    +(it.until?'<u class="warn">'+d2s(it.until)+'부터 없음</u>':'')
    +(it.sure===false?'<u class="warn">확인</u>':'')
    +'<i>'+(on?'▲':'수정')+'</i></div>'
+   +(armed==='d'+it.id
+     ? '<div class="confirm" style="margin:8px 10px 10px"><span>이 줄을 목록에서 아예 지울까요?<br>'
+       +'<span style="color:var(--ink-soft)">지난 날짜에서도 사라집니다. 오늘부터만 없애려면 그날 시험 화면에서 지우세요.</span></span>'
+       +'<button class="btn danger" data-delok="'+it.id+'">지우기</button>'
+       +'<button class="btn ghost" data-delno="1">취소</button></div>'
+     : '')
    +(dead?'<div class="confirm" style="margin:0 10px 10px"><span>지금은 안 나오는 시험이에요</span>'
      +'<button class="btn ghost" data-revive="'+it.id+'">다시 살리기</button>'
      +'<button class="btn danger" data-wipe="'+it.id+'">목록에서 지우기</button></div>':'')
@@ -1502,7 +1504,7 @@ function viewSet(){
    +'<button class="btn danger" data-reset="1">'+(armed==='reset'?'정말 되돌릴까요?':'처음 상태로')+'</button></div>';
   h+=rosterSection();
   for(let w=1;w<=5;w++){
-    const list=act.filter(i=>!i.once&&i.wd===w).sort((a,b)=>cidx(a.cls)-cidx(b.cls)||a.cls.localeCompare(b.cls));
+    const list=act.filter(i=>!i.once&&i.wd===w&&!(i.until&&i.until<=sel)&&(showDead||true)).sort((a,b)=>cidx(a.cls)-cidx(b.cls)||a.cls.localeCompare(b.cls));
     const sheets=list.filter(i=>!i.off&&!(i.noprint||i.kind==='fixed'))
       .reduce((a,i)=>a+((i.kind==='retest'||i.nFix)?(i.n||0):headcount(i.cls)),0);
     const op=!!dayOpen[w];
@@ -1510,6 +1512,13 @@ function viewSet(){
       +'<span style="font-weight:500;color:var(--ink-soft)">'+list.length+'개 · '+sheets+'장</span>'
       +(op?'<button class="mini" style="float:right" data-addday="'+w+'">추가</button>':'')+'</h3>';
     if(op)h+= list.length? list.map(setRow).join('') : '<div class="empty">시험 없음</div>';
+    h+='</div>';
+  }
+  const dead=act.filter(i=>!i.once&&(i.off||(i.until&&i.until<=sel)));
+  if(dead.length){
+    h+='<div class="grp"><h3 data-sec="dead" style="cursor:pointer">'+(showDead?'▾':'▸')
+      +' 없앤 시험 <span style="font-weight:500;color:var(--ink-soft)">'+dead.length+'개</span></h3>';
+    if(showDead)h+=dead.sort((a,b)=>cidx(a.cls)-cidx(b.cls)).map(setRow).join('');
     h+='</div>';
   }
   return h;
@@ -1893,8 +1902,8 @@ function wire(){
     if(gone&&gone.once){
       if(!/^[umkr]/.test(gone.id||''))cfg.removedKeys=(cfg.removedKeys||[]).concat([skeyOf(gone)]);
       cfg.items=cfg.items.filter(x=>x.id!==id);
-    }else if(gone){ gone.until=sel }
-    await saveCfg(); render(); toast(gone&&gone.once?'지웠어요':'오늘부터 없앴어요');
+    }else if(gone){ gone.until=sel }      // 오늘부터 없음, 지난 기록은 그대로
+    await saveCfg(); render(); toast('오늘부터 없앴어요');
   };
   document.querySelectorAll('[data-addto]').forEach(b=>b.onclick=async()=>{
     const c=b.dataset.addto;
@@ -1983,6 +1992,7 @@ function wire(){
   document.querySelectorAll('[data-sec]').forEach(el=>el.onclick=()=>{
     const k=el.dataset.sec;
     if(k==='ros')rosSecOpen=!rosSecOpen;
+    else if(k==='dead')showDead=!showDead;
     else { const w=+k.slice(1); dayOpen[w]=!dayOpen[w] }
     editing={}; rosOpen=null; armed=null; render();
   });
