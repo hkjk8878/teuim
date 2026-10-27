@@ -201,6 +201,7 @@
   .fields input,.fields select{width:100%;font-family:inherit;font-size:13px;padding:5px 6px;border:1px solid var(--grid);border-radius:3px;background:var(--paper);color:var(--ink)}
   .btn{font-family:inherit;font-size:13px;padding:7px 12px;border-radius:3px;border:1px solid var(--ink);background:var(--ink);color:#fff;cursor:pointer}
   .btn.ghost{background:#fff;color:var(--ink)}
+  .btn:disabled{opacity:.5;cursor:default}
   .btn.danger{background:#fff;color:var(--red);border-color:var(--red)}
   .mini{border:1px solid var(--grid);background:#fff;border-radius:3px;font-size:12px;padding:3px 8px;cursor:pointer;font-family:inherit;color:var(--ink-soft);white-space:nowrap}
   .mini:active{background:var(--grid)}
@@ -240,6 +241,7 @@
 <main class="wrap" id="main"></main>
 <div class="toast" id="toast"></div>
 <input type="file" id="imgin" accept="image/*" style="display:none">
+<input type="file" id="ttin" accept="image/*" style="display:none">
 <div id="lb"><img alt=""></div>
 
 <script>
@@ -482,6 +484,7 @@ function merge(old){
   const oldCal=old.cal||[];
   const hasDate={}; oldCal.forEach(e=>{ if(e.type==='hol')hasDate[e.date]=1 });
   out.cal=oldCal.concat((fresh.cal||[]).filter(e=>!hasDate[e.date]));
+  if(old.tt)out.tt=old.tt;          // 앱에서 바꾼 시간표 그림
   return out;
 }
 
@@ -1580,23 +1583,46 @@ function viewCal(){
   return h;
 }
 
-/* ── 시간표: 파일만 바꿔 올리면 됩니다 (timetable/mon.jpg ~ fri.jpg) ── */
+/* ── 시간표 ──
+   기본 그림은 tt-mon.jpg ~ tt-fri.jpg 파일.
+   앱에서 '시간표 바꾸기'로 새 그림을 올리면 cfg.tt 에 저장되고 모든 선생님 화면에 같이 바뀝니다. */
 const TT=[{w:1,k:'월',f:'mon'},{w:2,k:'화',f:'tue'},{w:3,k:'수',f:'wed'},{w:4,k:'목',f:'thu'},{w:5,k:'금',f:'fri'}];
-let ttDay=null;
+let ttDay=null, ttBusy=false;
+function ttCur(){ const sw=parse(sel).getDay(); return ttDay||(sw>=1&&sw<=5?sw:1) }
+function ttSrc(w){
+  const c=(cfg.tt||{})[w], t=TT.find(x=>x.w===w);
+  return c&&c.id ? imgSrc(c.id) : 'tt-'+t.f+'.jpg';
+}
 function viewTime(){
-  const sw=parse(sel).getDay();
-  const cur=ttDay||(sw>=1&&sw<=5?sw:1);
-  const t=TT.find(x=>x.w===cur);
+  const cur=ttCur(), t=TT.find(x=>x.w===cur), c=(cfg.tt||{})[cur];
+  const src=ttSrc(cur);
   return '<div class="ttdays">'+TT.map(x=>'<button class="chip'+(x.w===cur?' on':'')+'" data-tt="'+x.w+'">'+x.k+'</button>').join('')+'</div>'
-   +'<a class="ttimg" href="timetable/'+t.f+'.jpg" target="_blank" rel="noopener">'
-   +'<img src="timetable/'+t.f+'.jpg" alt="'+t.k+'요일 시간표"></a>'
-   +'<div class="note">'+t.k+'요일 시간표예요. 그림을 누르면 원본으로 열려서 크게 확대해 볼 수 있어요.</div>';
+   +'<a class="ttimg" href="'+esc(src)+'" target="_blank" rel="noopener">'
+   +'<img src="'+esc(src)+'" alt="'+t.k+'요일 시간표"></a>'
+   +'<div class="note">'+t.k+'요일 시간표예요. 그림을 누르면 원본으로 열려서 크게 확대해 볼 수 있어요.'
+   +(c&&c.at?' <b>'+esc(c.at.slice(5).replace('-','/'))+'</b>에 앱에서 바꾼 시간표예요.':'')+'</div>'
+   +'<div class="toolbar"><button class="btn" data-ttup="1"'+(ttBusy?' disabled':'')+'>'+(ttBusy?'올리는 중…':t.k+'요일 시간표 바꾸기')+'</button>'
+   +(c&&c.id?'<button class="btn ghost" data-ttreset="1">'+(armed==='ttr'?'정말 되돌릴까요?':'처음 그림으로 되돌리기')+'</button>':'')
+   +'</div>'
+   +'<div class="meta" style="margin-top:6px">엑셀 시간표를 캡처하거나 사진을 찍어서 고르면 돼요. 다른 선생님 화면에도 같이 바뀌어요.</div>';
+}
+function ttShrink(file){            // 시간표는 글씨가 작아서 일반 사진보다 크게 저장
+  return new Promise((ok,no)=>{
+    const fr=new FileReader();
+    fr.onload=()=>{ const im=new Image();
+      im.onload=()=>{ const max=2200, sc=Math.min(1,max/Math.max(im.width,im.height));
+        const c=document.createElement('canvas'); c.width=Math.round(im.width*sc); c.height=Math.round(im.height*sc);
+        const g=c.getContext('2d'); g.fillStyle='#fff'; g.fillRect(0,0,c.width,c.height); g.drawImage(im,0,0,c.width,c.height);
+        ok(c.toDataURL('image/jpeg',0.85)) };
+      im.onerror=no; im.src=fr.result };
+    fr.onerror=no; fr.readAsDataURL(file);
+  });
 }
 
-/* ── 서류: docs 폴더에 파일을 넣고 아래 목록에 한 줄 추가하면 됩니다 ── */
+/* ── 서류: 파일을 올리고 아래 목록에 한 줄 추가하면 됩니다 ── */
 const DOCS=[
   {t:'연차사용확인서', d:'연차를 쓸 때 작성하는 서류예요. PDF는 바로 인쇄해서 손으로 쓰고, Word는 컴퓨터에서 입력해서 뽑을 때 쓰세요.',
-   files:[{h:'docs/leave.pdf',n:'연차사용확인서.pdf',l:'PDF (바로 인쇄)'},{h:'docs/leave.docx',n:'연차사용확인서.docx',l:'Word로 받기'}]},
+   files:[{h:'leave.pdf',n:'연차사용확인서.pdf',l:'PDF (바로 인쇄)'},{h:'leave.docx',n:'연차사용확인서.docx',l:'Word로 받기'}]},
   {t:'재직증명서', d:'준비 중이에요.', files:[]}
 ];
 function viewDocs(){
@@ -1638,7 +1664,16 @@ function viewSet(){
 function resolve0(it){return {it,kind:it.kind,book:it.book||''}}
 
 function wire(){
-  document.querySelectorAll('[data-tt]').forEach(b=>b.onclick=()=>{ttDay=+b.dataset.tt;render()});
+  document.querySelectorAll('[data-tt]').forEach(b=>b.onclick=()=>{ttDay=+b.dataset.tt;armed=null;render()});
+  const ttup=document.querySelector('[data-ttup]');
+  if(ttup)ttup.onclick=()=>{ if(!ttBusy) $('#ttin').click() };
+  const ttre=document.querySelector('[data-ttreset]');
+  if(ttre)ttre.onclick=async()=>{
+    if(armed!=='ttr'){ armed='ttr'; render(); return }
+    armed=null; const w=ttCur();
+    if(cfg.tt){ delete cfg.tt[w] }
+    await saveCfg(); render(); toast('처음 그림으로 되돌렸어요');
+  };
   const mo=sel.slice(0,7);
   document.querySelectorAll('[data-pr]').forEach(b=>b.onclick=async()=>{
     const e=entry(sel,b.dataset.pr); e.pr=!e.pr; await saveLog(mo); render();
@@ -2299,6 +2334,20 @@ $('#imgin').onchange=async e=>{
   }catch(err){ toast('사진 실패 — '+(err&&err.message?err.message:'')) }
 };
 $('#lb').onclick=()=>$('#lb').classList.remove('on');
+$('#ttin').onchange=async e=>{
+  const f=e.target.files&&e.target.files[0];
+  e.target.value='';
+  if(!f)return;
+  const w=ttCur(), k=TT.find(x=>x.w===w).k;
+  if(!WORKER||memory){ toast('저장소에 연결이 안 돼서 시간표를 바꿀 수 없어요'); return }
+  ttBusy=true; render();
+  try{
+    const id=await upImg(await ttShrink(f));
+    cfg.tt=Object.assign({},cfg.tt||{}); cfg.tt[w]={id, at:ymd(new Date())};
+    await saveCfg(); toast(k+'요일 시간표를 바꿨어요');
+  }catch(err){ toast('시간표 실패 — '+(err&&err.message?err.message:'')) }
+  ttBusy=false; render();
+};
 
 
 let tt;

@@ -1,10 +1,10 @@
 /* 0교시 시험 트래커 — 서비스워커
    네트워크 우선. 새 파일을 올리면 바로 반영되고, 인터넷이 없을 때만 캐시를 씁니다. */
-const CACHE = 'teuim-v3';
+const CACHE = 'teuim-v4';
 const SHELL = ['./', './index.html', './manifest.webmanifest',
                './icon-192.png', './icon-512.png', './apple-touch-icon.png',
-               './timetable/mon.jpg', './timetable/tue.jpg', './timetable/wed.jpg',
-               './timetable/thu.jpg', './timetable/fri.jpg'];
+               './tt-mon.jpg', './tt-tue.jpg', './tt-wed.jpg',
+               './tt-thu.jpg', './tt-fri.jpg'];
 
 self.addEventListener('install', e => {
   self.skipWaiting();
