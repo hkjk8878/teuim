@@ -579,7 +579,7 @@ let cfg=seed(), logs={}, sel=null, tab='day', memory=false, open={}, addOpen=fal
 let rosOpen=null, dayOpen={}, rosSecOpen=false, rosNew=null, rosMg='', showDead=false;
 let calMo=null, calDay=null, calAdd=null, calEdit=null;  // calAdd={start,end,ty,tx}
 let rtOpen=null, rtSel={}, rtDate='', rtWhat='', rtRound=1, rtKind='vocab', rtAll=false;
-let afCls='', afNew='', afKind='retest', afDate='', afN='', afWhat='', afNote='', afPrint='', afSel={}, afRound=1, afRKind='vocab', afRep='one', afBook=null, afPick={}, afImgs=[];
+let afCls='', afNew='', afKind='vocab', afDate='', afN='', afWhat='', afNote='', afPrint='', afSel={}, afRound=1, afRKind='vocab', afRep='one', afBook=null, afPick={}, afImgs=[];
 
 const pad=n=>String(n).padStart(2,'0');
 const ymd=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
@@ -737,8 +737,8 @@ const CLSORD=['TWC','TPG','TPA','THA',
   'TPH','TPT','TPW','TMA','TPQ','TPX','TPO',
   'TMX','TMP','TMG','TMB','TPF','TPF-1','TP1','TM1'];
 const CHOICES=[
- {v:'retest',t:'재시험',      kind:'retest'},
  {v:'vocab', t:'단어',        kind:'vocab'},
+ {v:'retest',t:'재시험',      kind:'retest'},
  {v:'blank', t:'백지',        kind:'blank'},
  {v:'t1200', t:'뜯중 1200',   kind:'set', book:'뜯중 1200'},
  {v:'t1800', t:'뜯중 1800',   kind:'set', book:'뜯중 1800'},
@@ -748,7 +748,7 @@ const CHOICES=[
  {v:'each',  t:'각자 다름 (애들이 요청)', kind:'each'},
  {v:'free',  t:'직접 쓰기',    kind:'set'}
 ];
-const choice=v=>CHOICES.find(c=>c.v===v)||CHOICES[0];
+const choice=v=>CHOICES.find(c=>c.v===v)||CHOICES.find(c=>c.v==='retest');
 /* 자체교재 반이 쓰는 교재 — 반을 고르면 자동으로 붙습니다 */
 function applyChoice(it,v,date,text,keep){
   const old={base:it.base,anchor:it.anchor,step:it.step,ul:it.ul,src:it.src,label:it.label,fmt:it.fmt};
@@ -1946,7 +1946,7 @@ function wire(){
   });
   const once=document.querySelector('[data-once]');
   if(once)once.onclick=()=>{
-    addOpen=true; afDate=sel; afKind='retest'; afPick={};
+    addOpen=true; afDate=sel; afKind='vocab'; afPick={};
     afNew=''; afN=''; afWhat=''; afNote=''; afPrint=''; afSel={}; afRound=1; afRKind='vocab'; afRep='one'; afBook=null; armed=null; render();
   };
   ['#ak','#ar','#arw','#arp','#ad'].forEach(id=>{
