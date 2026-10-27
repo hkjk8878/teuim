@@ -34,7 +34,8 @@
   .chip{border:1px solid var(--grid);background:#fff;border-radius:999px;padding:5px 12px;font-size:13px;cursor:pointer;color:var(--ink-soft);font-family:inherit}
   .chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
   .tabs{display:flex;border-top:1px solid var(--grid)}
-  .tab{flex:1;padding:11px 0;text-align:center;font-size:14px;font-weight:600;color:var(--ink-soft);cursor:pointer;background:none;border:none;border-bottom:2px solid transparent;font-family:inherit}
+  .tab{flex:1;padding:11px 0;text-align:center;font-size:14px;white-space:nowrap;letter-spacing:-.3px;font-weight:600;color:var(--ink-soft);cursor:pointer;background:none;border:none;border-bottom:2px solid transparent;font-family:inherit}
+  @media (max-width:420px){ .tab{font-size:12.5px} .quick .chip{padding:5px 10px} #dpick{width:128px;padding:4px 6px!important} }
   .tab.on{color:var(--ink);border-bottom-color:var(--ink)}
 
   .total{display:flex;align-items:baseline;gap:10px;margin:16px 0 4px}
@@ -112,6 +113,18 @@
   .th img{width:74px;height:74px;object-fit:cover;border:1px solid var(--grid);border-radius:3px;background:#fff;cursor:zoom-in}
   .thx.arm{border-color:var(--red);color:var(--red);font-weight:700}
   .thx{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;border:1px solid var(--grid);background:#fff;font-size:11px;line-height:1;cursor:pointer;padding:0;color:var(--ink-soft)}
+  /* 시간표 · 서류 */
+  .ttdays{display:flex;gap:6px;margin:14px 0 10px}
+  .ttdays .chip{flex:1;text-align:center}
+  .ttimg{display:block;border:1px solid var(--grid);border-radius:3px;overflow:hidden;background:#fff}
+  .ttimg img{display:block;width:100%;height:auto}
+  .doc{border:1px solid var(--grid);border-radius:3px;background:#fff;padding:14px;margin-bottom:10px}
+  .doc h3{margin:0 0 4px;font-size:16px}
+  .doc p{margin:0 0 12px;font-size:13px;color:var(--ink-soft);line-height:1.6}
+  .doc .acts{display:flex;gap:8px;flex-wrap:wrap}
+  .doc a.btn{text-decoration:none;display:inline-block}
+  .doc.wait{background:transparent;border-style:dashed}
+  .doc.wait h3{color:var(--ink-soft)}
   #lb{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:60;display:none;align-items:center;justify-content:center;padding:12px}
   #lb.on{display:flex}
   #lb img{max-width:100%;max-height:100%;object-fit:contain}
@@ -124,11 +137,11 @@
   .calbar{display:flex;align-items:center;gap:8px;margin:16px 0 10px}
   .calbar b{font-size:18px}
   .cal{border:1px solid var(--grid);border-radius:3px;overflow:hidden;background:#fff}
-  .calhead{display:grid;grid-template-columns:repeat(7,1fr);background:#F6F6F1;border-bottom:1px solid var(--grid)}
+  .calhead{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));background:#F6F6F1;border-bottom:1px solid var(--grid)}
   .calhead div{text-align:center;font-size:12px;font-weight:600;padding:6px 0;color:var(--ink-soft)}
   .calhead .sun{color:var(--red)}.calhead .sat{color:#2F6FB5}
-  .calgrid{display:grid;grid-template-columns:repeat(7,1fr)}
-  .cd{min-height:66px;border-right:1px solid var(--grid);border-bottom:1px solid var(--grid);padding:3px;cursor:pointer}
+  .calgrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));grid-auto-rows:minmax(74px,auto)}
+  .cd{min-width:0;overflow:hidden;border-right:1px solid var(--grid);border-bottom:1px solid var(--grid);padding:3px;cursor:pointer}
   .cd:nth-child(7n){border-right:none}
   .cd.out{background:#FAFAF7;opacity:.45}
   .cd.now{background:#FDFBE7}
@@ -139,14 +152,19 @@
   .dchip.off{color:var(--ink-soft);font-weight:500}
   .cdn{font-size:12px;font-weight:600;margin-bottom:2px}
   .cdn.sun{color:var(--red)}.cdn.sat{color:#2F6FB5}
-  .cev{font-size:10px;line-height:1.35;border-radius:2px;padding:1px 3px;margin-bottom:1px;
-       overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .cev{font-size:10px;line-height:1.35;border-radius:2px;padding:1px 2px;margin-bottom:1px;letter-spacing:-.3px;
+       overflow:hidden;white-space:normal;word-break:break-all;
+       display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2}
   .c-hol{background:#FFDCD7;color:#8E2B22}
   .c-leave{background:#FFF176;color:#6B5A00}
   .c-mark{background:#D6E7FA;color:#1F4E80}
   .row.c-hol{background:#FFE8E4;border-color:#E3A99F}
   .row.c-leave{background:#FFF7B8;border-color:var(--hl-edge)}
   .row.c-mark{background:#E2EDFB;border-color:#9CBEE2}
+  .cev.c-mark.off{background:#FFDCD7;color:#8E2B22}
+  .offtag{white-space:nowrap;display:inline-block;font-size:11px;font-weight:700;color:#8E2B22;background:#FFDCD7;border-radius:3px;padding:1px 5px;margin-left:4px}
+  .offchk{grid-column:1/-1;display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer}
+  .offchk input{width:18px;height:18px;margin:0}
   .sw.c-hol{background:#FFDCD7}.sw.c-leave{background:#FFF176}.sw.c-mark{background:#D6E7FA}
   .wk{border:1px solid var(--grid);border-radius:3px;overflow:hidden;background:#fff}
   .wkday{border-bottom:1px solid var(--grid);padding:9px 12px}
@@ -156,7 +174,7 @@
   .wkday h4 em{font-style:normal;color:var(--ink-soft);font-weight:500;margin-left:4px}
   .wkday h4 i{font-style:normal;float:right;color:var(--ink-soft);font-weight:500}
   .wkitem{font-size:13px;padding:1px 0}
-  .wkitem.v{background:linear-gradient(transparent 55%,var(--hl) 55%);display:inline-block}
+  .wkitem.v{background:linear-gradient(transparent 55%,var(--hl) 55%);display:block;width:fit-content}
   .wkitem.a{color:var(--pen)}
   .wkitem.f{color:var(--ink-soft)}
 
@@ -210,9 +228,10 @@
       <button class="chip" id="binst" style="display:none;background:#3C7D69;color:#fff;border-color:#3C7D69">앱으로 설치</button>
     </div>
     <div class="tabs">
-      <button class="tab on" data-t="day">그날 시험</button>
-      <button class="tab" data-t="week">이번 주</button>
+      <button class="tab on" data-t="day">오늘 시험</button>
       <button class="tab" data-t="cal">달력</button>
+      <button class="tab" data-t="tt">시간표</button>
+      <button class="tab" data-t="doc">서류</button>
       <button class="tab" data-t="set">반 설정</button>
     </div>
   </div>
@@ -914,7 +933,7 @@ function render(){
   $('#btoday').classList.toggle('on',sel===today);
   $('#btmr').classList.toggle('on',sel===shift(today,1));
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.t===tab));
-  $('#main').innerHTML= tab==='day'?viewDay():tab==='week'?viewWeek():tab==='cal'?viewCal():viewSet();
+  $('#main').innerHTML= tab==='day'?viewDay():tab==='week'?viewWeek():tab==='cal'?viewCal():tab==='tt'?viewTime():tab==='doc'?viewDocs():viewSet();
   wire();
   if(keepY)window.scrollTo(0,keepY);
 }
@@ -1144,7 +1163,7 @@ function viewDay(){
     +(sheets&&left===0?'<div class="rule" style="border-left-color:#1F7A3D;background:#EDF7EE">오늘 뽑을 거 다 뽑았어요</div>':'');
   if(isHol(sel))h+='<div class="rule" style="border-left-color:var(--red);background:#FFF1EE">'
     +'<b>'+esc(holName(sel)||'공휴일')+'</b> · 학원 쉬는 날이라 매주 있는 시험은 안 나와요. '
-    +'여는 날이면 달력 탭에서 이 날 공휴일 표시를 지우세요.</div>';
+    +'여는 날이면 달력 탭에서 이 날 공휴일 표시나 \'수업 없음\' 체크를 지우세요.</div>';
   if(RULES[wd])h+='<div class="rule">'+RULES[wd]+'</div>';
   h+= addOpen ? addForm() : '<div class="toolbar" style="margin:10px 0 0"><button class="btn ghost" data-once="1">＋ 시험 / 재시험 추가</button></div>';
   if(!rows.length)return h+'<div class="sec"><div class="empty">이 날은 0교시 시험이 없어요.</div></div>';
@@ -1276,7 +1295,7 @@ function viewWeek(){
     });
     h+='</div>';
   }
-  return h+'</div></div><div class="note">왼쪽 색은 그날 시험 화면과 같아요. <span class="sw t-retest"></span>재시험 <span class="sw t-vocab"></span>단어 <span class="sw t-blank"></span>백지 <span class="sw t-book"></span>뜯중·워드마스터 <span class="sw t-each"></span>각자 다름 <span class="sw t-self"></span>자체교재. 오른쪽 장수는 자체교재를 뺀 숫자예요.</div>';
+  return h+'</div></div><div class="note">왼쪽 색은 오늘 시험 화면과 같아요. <span class="sw t-retest"></span>재시험 <span class="sw t-vocab"></span>단어 <span class="sw t-blank"></span>백지 <span class="sw t-book"></span>뜯중·워드마스터 <span class="sw t-each"></span>각자 다름 <span class="sw t-self"></span>자체교재. 오른쪽 장수는 자체교재를 뺀 숫자예요.</div>';
 }
 
 function itemSummary(it){
@@ -1338,12 +1357,12 @@ function itemFields(it){
    +(it.kind==='book'?'':'<div style="grid-column:1/-1"><label>교재</label>'
        +'<input data-k="ownBook" data-id="'+it.id+'" value="'+esc(it.ownBook||bookOfItem(it,sel)||'')+'" placeholder="예: Bricks Reading1"></div>'
        +'<div style="grid-column:1/-1;font-size:11px;color:var(--ink-soft);margin-top:-2px">'
-       +'교재를 바꾸면 지난 날짜까지 같이 바뀝니다. 지난 기록을 남기려면 그날 시험 화면에서 반 이름 옆을 눌러 바꾸세요.</div>')
+       +'교재를 바꾸면 지난 날짜까지 같이 바뀝니다. 지난 기록을 남기려면 오늘 시험 화면에서 반 이름 옆을 눌러 바꾸세요.</div>')
    +(numbered? (it.kind==='book'
         ? '<div style="grid-column:1/-1"><label>교재</label>'
           +'<input value="'+esc(bookOfItem(it,sel)||it.book||'')+'" disabled style="color:var(--ink-soft)">'
           +'<div style="font-size:11px;color:var(--ink-soft);margin-top:3px">'
-          +'교재는 그날 시험 화면에서 반 이름 옆을 눌러 바꾸세요. 바꾼 날부터만 적용돼서 지난 기록은 그대로 남습니다.</div></div>'
+          +'교재는 오늘 시험 화면에서 반 이름 옆을 눌러 바꾸세요. 바꾼 날부터만 적용돼서 지난 기록은 그대로 남습니다.</div></div>'
         : '')+'<div><label>번호 앞에 붙는 말</label><input data-k="ul" data-id="'+it.id+'" value="'+esc(it.ul==null?'':it.ul)+'" placeholder="Day"></div>'
        +f('anchor','번호 세는 기준 날','date')+f('base','그 날의 번호','number')
        +'<div><label>주마다</label><select data-k="step" data-id="'+it.id+'"><option value="1"'+(it.step===1?' selected':'')+'>+1 (올라감)</option><option value="-1"'+(it.step===-1?' selected':'')+'>-1 (내려감)</option></select></div>'
@@ -1368,7 +1387,7 @@ function setRow(it){
    +'<i>'+(on?'▲':'수정')+'</i></div>'
    +(armed==='d'+it.id
      ? '<div class="confirm" style="margin:8px 10px 10px"><span>이 줄을 목록에서 아예 지울까요?<br>'
-       +'<span style="color:var(--ink-soft)">지난 날짜에서도 사라집니다. 오늘부터만 없애려면 그날 시험 화면에서 지우세요.</span></span>'
+       +'<span style="color:var(--ink-soft)">지난 날짜에서도 사라집니다. 오늘부터만 없애려면 오늘 시험 화면에서 지우세요.</span></span>'
        +'<button class="btn danger" data-delok="'+it.id+'">지우기</button>'
        +'<button class="btn ghost" data-delno="1">취소</button></div>'
      : '')
@@ -1460,8 +1479,10 @@ function rosterSection(){
 
 const d2s=d=>d.slice(5).replace('-','/');
 /* 달력에 공휴일로 표시된 날 = 학원 쉬는 날. 지우면 그날은 여는 날이 됩니다 */
-function isHol(d){ return (cfg.cal||[]).some(e=>e.type==='hol'&&e.date===d) }
-function holName(d){ const e=(cfg.cal||[]).find(x=>x.type==='hol'&&x.date===d); return e?e.text:'' }
+/* 중요한 날 중 '수업 없음'에 체크한 날(할로윈데이 등)도 공휴일과 똑같이 쉬는 날로 칩니다 */
+const offEv=e=>e.type==='hol'||(e.type==='mark'&&e.off);
+function isHol(d){ return (cfg.cal||[]).some(e=>offEv(e)&&e.date===d) }
+function holName(d){ const e=(cfg.cal||[]).find(x=>offEv(x)&&x.date===d); return e?e.text:'' }
 function holSkips(it,date){
   if(!it.anchor||it.wd==null)return 0;
   let d=it.anchor, g=0;
@@ -1489,18 +1510,18 @@ function viewCal(){
     const ds=ymd(dt), out=dt.getMonth()!==m-1;
     if(i>=35 && out) continue;
     const ev=calOf(ds);
-    const hol=ev.some(e=>e.type==='hol');
+    const hol=ev.some(offEv);
     const inRange = calAdd && ds>=calAdd.start && ds<=(calAdd.end||calAdd.start);
     h+='<div class="cd'+(out?' out':'')+(ds===today?' now':'')+(ds===calDay?' pick':'')
       +(inRange?' rng':'')+'" data-cd="'+ds+'">'
      +'<div class="cdn'+(hol||dt.getDay()===0?' sun':dt.getDay()===6?' sat':'')+'">'+dt.getDate()+'</div>'
-     +ev.slice(0,3).map(e=>'<div class="cev '+CALT[e.type].c+'">'+esc(e.text||CALT[e.type].t)+'</div>').join('')
+     +ev.slice(0,3).map(e=>'<div class="cev '+CALT[e.type].c+(e.type==='mark'&&e.off?' off':'')+'">'+esc(e.text||CALT[e.type].t)+'</div>').join('')
      +(ev.length>3?'<div class="cev">+'+(ev.length-3)+'</div>':'')
      +'</div>';
   }
   h+='</div></div>';
   h+='<div class="note"><span class="sw c-hol"></span>공휴일 <span class="sw c-leave"></span>연차 '
-   +'<span class="sw c-mark"></span>중요한 날 · 날짜를 누르면 넣고 고칠 수 있어요</div>';
+   +'<span class="sw c-mark"></span>중요한 날 (빨간색이면 <b>수업 없음</b> — 진도가 그다음 수업으로 밀려요) · 날짜를 누르면 넣고 고칠 수 있어요</div>';
 
   if(calDay){
     const d=parse(calDay), ev=calOf(calDay);
@@ -1511,7 +1532,8 @@ function viewCal(){
       h+='<div class="row '+CALT[e.type].c+'"><div class="top">'
        +'<div class="code" style="min-width:64px">'+CALT[e.type].t+'</div>'
        +'<div class="body" style="flex:1">'+esc(e.text||'')
-       +(e.span?' <span style="font-size:11px;color:var(--ink-soft)">'+esc(e.span)+'</span>':'')+'</div>'
+       +(e.span?' <span style="font-size:11px;color:var(--ink-soft)">'+esc(e.span)+'</span>':'')
+       +(e.type==='mark'&&e.off?' <span class="offtag">수업 없음</span>':'')+'</div>'
        +'<button class="notebtn" data-cedit="'+e.id+'">'+(on?'닫기':'고치기')+'</button>'
        +'<button class="notebtn'+(armed==='c'+e.id?' has':'')+'" data-cdel="'+e.id+'">'
        +(armed==='c'+e.id?(e.gid?'기간 전체 삭제?':'정말 삭제?'):'삭제')+'</button></div>'
@@ -1521,7 +1543,9 @@ function viewCal(){
             +'</select></div>'
           +'<div><label>날짜</label><input type="date" id="cedd" value="'+esc(e.date)+'"></div>'
           +'<div style="grid-column:1/-1"><label>이름 / 내용</label>'
-          +'<input id="cedv" value="'+esc(e.text||'')+'"></div></div>'
+          +'<input id="cedv" value="'+esc(e.text||'')+'"></div>'
+          +'<label class="offchk" id="cedoffw"'+(e.type==='mark'?'':' style="display:none"')+'>'
+          +'<input type="checkbox" id="cedoff"'+(e.off?' checked':'')+'> 이날은 <b>수업 없음</b> (쉬는 날로 치고 진도를 뒤로 미뤄요)</label></div>'
           +(e.gid?'<div class="meta">'+esc(e.span||'')+' 전체가 같이 바뀝니다. 날짜는 이 줄만 옮겨져요.</div>':'')
           +'<div class="toolbar" style="margin:8px 0 0"><button class="btn" data-cok="'+e.id+'">저장</button></div>':'')
        +'</div>';
@@ -1543,7 +1567,9 @@ function viewCal(){
          +'</select></div>'
        +'<div><label>날짜 직접</label><input type="date" id="cdt" value="'+calAdd.start+'"></div>'
        +'<div style="grid-column:1/-1"><label>이름 / 내용</label>'
-       +'<input id="ctx" value="'+esc(calAdd.tx||'')+'" placeholder="연차는 선생님 이름, 중요한 날은 내용"></div></div>'
+       +'<input id="ctx" value="'+esc(calAdd.tx||'')+'" placeholder="연차는 선생님 이름, 중요한 날은 내용"></div>'
+       +'<label class="offchk" id="coffw"'+(calAdd.ty==='mark'?'':' style="display:none"')+'>'
+       +'<input type="checkbox" id="coff"'+(calAdd.off?' checked':'')+'> 이날은 <b>수업 없음</b> (쉬는 날로 치고 진도를 뒤로 미뤄요)</label></div>'
        +'<div class="toolbar"><button class="btn" data-cadd="1">넣기</button>'
        +'<button class="btn ghost" data-cno="1">취소</button></div></div>';
     }else{
@@ -1552,6 +1578,32 @@ function viewCal(){
     h+='</div>';
   }
   return h;
+}
+
+/* ── 시간표: 파일만 바꿔 올리면 됩니다 (timetable/mon.jpg ~ fri.jpg) ── */
+const TT=[{w:1,k:'월',f:'mon'},{w:2,k:'화',f:'tue'},{w:3,k:'수',f:'wed'},{w:4,k:'목',f:'thu'},{w:5,k:'금',f:'fri'}];
+let ttDay=null;
+function viewTime(){
+  const sw=parse(sel).getDay();
+  const cur=ttDay||(sw>=1&&sw<=5?sw:1);
+  const t=TT.find(x=>x.w===cur);
+  return '<div class="ttdays">'+TT.map(x=>'<button class="chip'+(x.w===cur?' on':'')+'" data-tt="'+x.w+'">'+x.k+'</button>').join('')+'</div>'
+   +'<a class="ttimg" href="timetable/'+t.f+'.jpg" target="_blank" rel="noopener">'
+   +'<img src="timetable/'+t.f+'.jpg" alt="'+t.k+'요일 시간표"></a>'
+   +'<div class="note">'+t.k+'요일 시간표예요. 그림을 누르면 원본으로 열려서 크게 확대해 볼 수 있어요.</div>';
+}
+
+/* ── 서류: docs 폴더에 파일을 넣고 아래 목록에 한 줄 추가하면 됩니다 ── */
+const DOCS=[
+  {t:'연차사용확인서', d:'연차를 쓸 때 작성하는 서류예요. PDF는 바로 인쇄해서 손으로 쓰고, Word는 컴퓨터에서 입력해서 뽑을 때 쓰세요.',
+   files:[{h:'docs/leave.pdf',n:'연차사용확인서.pdf',l:'PDF (바로 인쇄)'},{h:'docs/leave.docx',n:'연차사용확인서.docx',l:'Word로 받기'}]},
+  {t:'재직증명서', d:'준비 중이에요.', files:[]}
+];
+function viewDocs(){
+  return '<div class="sec"><div class="sec-h"><b>서류</b><span>필요할 때 받아서 뽑아 쓰세요</span></div>'
+   +DOCS.map(x=>'<div class="doc'+(x.files.length?'':' wait')+'"><h3>'+esc(x.t)+'</h3><p>'+esc(x.d)+'</p>'
+     +(x.files.length?'<div class="acts">'+x.files.map((f,i)=>'<a class="btn'+(i?' ghost':'')+'" href="'+f.h+'" download="'+esc(f.n)+'">'+esc(f.l)+'</a>').join('')+'</div>':'')
+     +'</div>').join('')+'</div>';
 }
 
 function viewSet(){
@@ -1586,6 +1638,7 @@ function viewSet(){
 function resolve0(it){return {it,kind:it.kind,book:it.book||''}}
 
 function wire(){
+  document.querySelectorAll('[data-tt]').forEach(b=>b.onclick=()=>{ttDay=+b.dataset.tt;render()});
   const mo=sel.slice(0,7);
   document.querySelectorAll('[data-pr]').forEach(b=>b.onclick=async()=>{
     const e=entry(sel,b.dataset.pr); e.pr=!e.pr; await saveLog(mo); render();
@@ -1983,7 +2036,13 @@ function wire(){
     const g=id=>{const e=document.querySelector(id);return e?e.value:null};
     const a=g('#cty'); if(a!==null)calAdd.ty=a;
     const b=g('#ctx'); if(b!==null)calAdd.tx=b;
+    const o=document.querySelector('#coff'); if(o)calAdd.off=o.checked;
   };
+  // 종류가 '중요한 날'일 때만 '수업 없음' 체크칸을 보여줌
+  [['#cty','#coffw'],['#cedty','#cedoffw']].forEach(([s,w])=>{
+    const se=document.querySelector(s), wr=document.querySelector(w);
+    if(se&&wr)se.addEventListener('change',()=>{ wr.style.display=se.value==='mark'?'':'none' });
+  });
   document.querySelectorAll('[data-cd]').forEach(el=>el.onclick=()=>{
     const d=el.dataset.cd;
     if(calAdd){                       // 넣는 중이면 달력을 눌러 기간을 잡음
@@ -2009,6 +2068,7 @@ function wire(){
     const ty=(document.querySelector('#cty')||{}).value||'leave';
     let dt=(document.querySelector('#cdt')||{}).value||calAdd.start;
     const tx=((document.querySelector('#ctx')||{}).value||'').trim();
+    const off=ty==='mark'&&!!(document.querySelector('#coff')||{}).checked;
     if(!dt){toast('날짜를 골라주세요');return}
     if(!tx&&ty!=='hol'){toast(ty==='leave'?'선생님 이름을 넣어주세요':'내용을 넣어주세요');return}
     let dt2=calAdd.end||dt;
@@ -2016,7 +2076,7 @@ function wire(){
     const gid='g'+Date.now();
     const add=[]; let cur=dt, guard=0;
     while(cur<=dt2 && guard++<400){
-      add.push({id:'c'+Date.now()+'_'+guard, date:cur, type:ty, text:tx||CALT[ty].t,
+      add.push({id:'c'+Date.now()+'_'+guard, date:cur, type:ty, text:tx||CALT[ty].t, off:off||undefined,
                 gid:(dt!==dt2?gid:undefined), span:(dt!==dt2?dt.slice(5).replace('-','/')+'~'+dt2.slice(5).replace('-','/'):undefined)});
       cur=shift(cur,1);
     }
@@ -2034,7 +2094,8 @@ function wire(){
     const nd=(document.querySelector('#cedd')||{}).value;
     const e=(cfg.cal||[]).find(x=>x.id===cok.dataset.cok);
     if(e){
-      const apply=x=>{ x.text=v; if(ty)x.type=ty };
+      const off=(ty||e.type)==='mark'&&!!(document.querySelector('#cedoff')||{}).checked;
+      const apply=x=>{ x.text=v; if(ty)x.type=ty; if(off)x.off=true; else delete x.off };
       if(e.gid)(cfg.cal||[]).forEach(x=>{ if(x.gid===e.gid)apply(x) }); else apply(e);
       if(nd&&nd!==e.date){ e.date=nd; delete e.gid; delete e.span; calDay=nd; calMo=nd.slice(0,7) }
     }
