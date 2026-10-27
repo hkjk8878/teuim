@@ -161,8 +161,8 @@
   .row.c-hol{background:#FFE8E4;border-color:#E3A99F}
   .row.c-leave{background:#FFF7B8;border-color:var(--hl-edge)}
   .row.c-mark{background:#E2EDFB;border-color:#9CBEE2}
-  .cev.c-mark.off{background:#FFDCD7;color:#8E2B22}
-  .offtag{white-space:nowrap;display:inline-block;font-size:11px;font-weight:700;color:#8E2B22;background:#FFDCD7;border-radius:3px;padding:1px 5px;margin-left:4px}
+  .cev.c-mark.off{background:#2F6FB5;color:#fff;font-weight:600}
+  .offtag{white-space:nowrap;display:inline-block;font-size:11px;font-weight:700;color:#fff;background:#2F6FB5;border-radius:3px;padding:1px 5px;margin-left:4px}
   .offchk{grid-column:1/-1;display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer}
   .offchk input{width:18px;height:18px;margin:0}
   .sw.c-hol{background:#FFDCD7}.sw.c-leave{background:#FFF176}.sw.c-mark{background:#D6E7FA}
@@ -1513,7 +1513,7 @@ function viewCal(){
     const ds=ymd(dt), out=dt.getMonth()!==m-1;
     if(i>=35 && out) continue;
     const ev=calOf(ds);
-    const hol=ev.some(offEv);
+    const hol=ev.some(e=>e.type==='hol');     // 날짜 숫자 빨간색은 법정공휴일만
     const inRange = calAdd && ds>=calAdd.start && ds<=(calAdd.end||calAdd.start);
     h+='<div class="cd'+(out?' out':'')+(ds===today?' now':'')+(ds===calDay?' pick':'')
       +(inRange?' rng':'')+'" data-cd="'+ds+'">'
@@ -1524,7 +1524,7 @@ function viewCal(){
   }
   h+='</div></div>';
   h+='<div class="note"><span class="sw c-hol"></span>공휴일 <span class="sw c-leave"></span>연차 '
-   +'<span class="sw c-mark"></span>중요한 날 (빨간색이면 <b>수업 없음</b> — 진도가 그다음 수업으로 밀려요) · 날짜를 누르면 넣고 고칠 수 있어요</div>';
+   +'<span class="sw c-mark"></span>중요한 날 <span class="sw" style="background:#2F6FB5"></span>수업 없는 날 (진도가 그다음 수업으로 밀려요) · 날짜를 누르면 넣고 고칠 수 있어요</div>';
 
   if(calDay){
     const d=parse(calDay), ev=calOf(calDay);
@@ -1599,12 +1599,10 @@ function viewTime(){
   return '<div class="ttdays">'+TT.map(x=>'<button class="chip'+(x.w===cur?' on':'')+'" data-tt="'+x.w+'">'+x.k+'</button>').join('')+'</div>'
    +'<a class="ttimg" href="'+esc(src)+'" target="_blank" rel="noopener">'
    +'<img src="'+esc(src)+'" alt="'+t.k+'요일 시간표"></a>'
-   +'<div class="note">'+t.k+'요일 시간표예요. 그림을 누르면 원본으로 열려서 크게 확대해 볼 수 있어요.'
-   +(c&&c.at?' <b>'+esc(c.at.slice(5).replace('-','/'))+'</b>에 앱에서 바꾼 시간표예요.':'')+'</div>'
+   +'<div class="note">클릭 시 확대</div>'
    +'<div class="toolbar"><button class="btn" data-ttup="1"'+(ttBusy?' disabled':'')+'>'+(ttBusy?'올리는 중…':t.k+'요일 시간표 바꾸기')+'</button>'
    +(c&&c.id?'<button class="btn ghost" data-ttreset="1">'+(armed==='ttr'?'정말 되돌릴까요?':'처음 그림으로 되돌리기')+'</button>':'')
-   +'</div>'
-   +'<div class="meta" style="margin-top:6px">엑셀 시간표를 캡처하거나 사진을 찍어서 고르면 돼요. 다른 선생님 화면에도 같이 바뀌어요.</div>';
+   +'</div>';
 }
 function ttShrink(file){            // 시간표는 글씨가 작아서 일반 사진보다 크게 저장
   return new Promise((ok,no)=>{
