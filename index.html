@@ -907,7 +907,7 @@ function content(r){
     return '<span style="color:var(--red);font-weight:700">'+roundName(r.it.round)+'</span>'
       +(w?' <span>'+esc(w)+'</span>':'');
   }
-  if(r.kind==='vocab')return '단어시험';
+  if(r.kind==='vocab')return '단어시험'+(r.src?' <span>· '+esc(r.src)+'</span>':'');
   if(r.kind==='blank'){
     const v=entry(sel,r.it.id).val||r.src;
     return '백지'+(v?' <span style="color:var(--ink-soft)">· '+esc(v)+'</span>':'');
