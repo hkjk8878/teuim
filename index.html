@@ -79,7 +79,7 @@
       text-decoration-style:dotted;text-underline-offset:2px}
   .qty{margin-left:auto;flex:0 0 auto;border:1px solid rgba(0,0,0,.2);background:rgba(255,255,255,.7);border-radius:3px;font-size:13px;font-weight:700;padding:2px 8px;cursor:pointer;font-family:inherit;color:var(--ink)}
   .qty.edited{border-color:var(--red);color:var(--red)}
-  .what{font-size:14px;margin-top:3px}
+  .what{font-size:14px;margin-top:3px;white-space:pre-line}
   .what .num{font-size:19px;font-weight:700}
   .auto .what{color:var(--pen)}
   .fixed .what{color:var(--ink-soft)}
@@ -876,7 +876,7 @@ function rangeOf(r){
   if(r.kind==='retest')return r.src||'';
   let t=r.src||'';
   if(r.num!=null)t=(t?t+' ':'')+(r.ul||'Unit')+' '+r.num;
-  if(!t&&e.memo)t=e.memo.replace(/\s+/g,' ').slice(0,40);
+  if(!t&&e.memo)t=e.memo.trim();
   return t;
 }
 function rowBook(r){
@@ -1146,8 +1146,8 @@ function rtPanel(r){
      + names.map(nm=>'<button class="nm'+(rtSel[nm]?' on':'')+'" data-rtn2="'+esc(nm)+'">'+esc(nm)+'</button>').join('')
      + '</div>';
   }
-  h+='<input class="val" id="rtx" value="'+esc(rtWhat)+'" placeholder="'
-   +(bookFor(rtKind,r.cls)?bookFor(rtKind,r.cls)+' — 어디까지 (예: Day 5)':'범위 (예: Unit 7)')+'">'
+  h+='<textarea class="memo val" id="rtx" rows="'+Math.min(6,Math.max(1,(rtWhat.match(/\n/g)||[]).length+1+Math.floor(rtWhat.length/45)))+'" placeholder="'
+   +(bookFor(rtKind,r.cls)?bookFor(rtKind,r.cls)+' — 어디까지 (예: Day 5)':'범위 (예: Unit 7)')+'">'+esc(rtWhat)+'</textarea>'
    +'<div class="toolbar" style="margin:8px 0 0">'
    +'<button class="btn" data-rtok="'+r.it.id+'">재시험 추가</button>'
    +'<button class="btn ghost" data-rtno="1">취소</button></div></div>';
