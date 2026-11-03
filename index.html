@@ -967,7 +967,7 @@ function rowHTML(r){
     h+='<input class="val" data-val="'+id+'" value="'+esc(e.val||'')+'" placeholder="'+(lv?'지난번('+lv.dt.slice(5)+'): '+esc(lv.val):(r.kind==='each'?'이 날 뽑을 것 직접 쓰기 — 예: Day45 1명(40문제) / Day12·13 2명(80문제)'
         :r.kind==='blank'?'어떤 시험인지 — 예: 품사':'이번에 볼 범위 입력'))+'">';
   }
-  if(r.kind==='vocab')
+  if(r.kind==='vocab'||(e.memo&&e.memo.trim()&&e.memo.trim()!==(r.src||'').trim()))
     h+='<textarea class="memo" data-memo="'+id+'" placeholder="받은 단어 / 범위">'+esc(e.memo||'')+'</textarea>';
   if(r.kind==='retest'&&(r.it.names||[]).length){
     const nm=r.it.names, ps=e.pass||{};
@@ -1045,7 +1045,7 @@ function edtPanel(r){
         +'<option value="one"'+(edt.v3==='one'?' selected':'')+'>오늘만 · 원래 건 그냥 넘김</option>'
         +'<option value="all"'+(edt.v3==='all'?' selected':'')+'>오늘부터 매주 계속</option></select></div>'
       +'<div style="grid-column:1/-1"><label>'+(c.book||cur==='self'?'어디까지 (예: Day 5)':'범위 / 내용')+'</label>'
-      +'<input id="ev2" value="'+esc(edt.v2||'')+'" placeholder="비워도 돼요"></div></div>',
+      +'<textarea class="memo" id="ev2" style="margin-top:0" placeholder="비워도 돼요">'+esc(edt.v2!=null?edt.v2:(r.src||entry(sel,r.it.id).memo||'').trim())+'</textarea></div></div>',
       '바꾸기');
   }
   if(t==='tch'){
@@ -1803,6 +1803,12 @@ function wire(){
     }
     if(t==='kind'){
       const v=val, text=((document.querySelector('#ev2')||{}).value||'').trim();
+      // 오늘만 바꾸면 새 시험(id)이 생겨서, 오늘 써둔 메모·사진·특이사항을 그쪽으로 옮겨줌
+      const carry=to=>{
+        const a=entry(sel,it.id), b=entry(sel,to);
+        ['memo','note','val','pr'].forEach(k=>{ if(a[k]!=null&&b[k]==null)b[k]=a[k] });
+        if((a.imgs||[]).length)b.imgs=(b.imgs||[]).concat(a.imgs);
+      };
       const scope=(document.querySelector('#ev3')||{}).value||'hold';
       if(scope==='all'){
         applyChoice(it,v,sel,text); it.sure=true;
@@ -1810,14 +1816,14 @@ function wire(){
       }else if(scope==='hold'&&!it.once){
         const cp={id:'k'+Date.now(),cls:it.cls,once:sel,n:it.n,sure:true,off:false};
         applyChoice(cp,v,sel,text);
-        cfg.items.push(cp);
+        cfg.items.push(cp); carry(cp.id);
         it.skip=(it.skip||[]).concat([sel]);
       }else if(it.once){
         applyChoice(it,v,sel,text); it.sure=true;
       }else{
         const cp={id:'k'+Date.now(),cls:it.cls,once:sel,n:it.n,sure:true,off:false};
         applyChoice(cp,v,sel,text);
-        cfg.items.push(cp);
+        cfg.items.push(cp); carry(cp.id);
         it.hide=(it.hide||[]).concat([sel]);
       }
       edt=null; await saveCfg(); render(); toast('바꿨어요'); return;
