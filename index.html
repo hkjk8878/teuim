@@ -132,6 +132,7 @@
   .notebtn:active{background:rgba(0,0,0,.06)}
   .notebtn{min-height:38px;padding:6px 11px;font-size:13px}
   .notebtn.x{color:var(--ink);background:#fff;border:1.5px solid #4A4A45;font-weight:700}
+  .notebtn.photo{color:#1F5FA8;border-color:#1F5FA8;font-weight:700;background:#fff}
   .notebtn.more{background:transparent;border-style:dashed}
   .notebtn.danger{color:var(--red);border-color:rgba(200,60,50,.45)}
   .acts.more{margin-top:6px;padding-top:6px;border-top:1px dashed rgba(0,0,0,.15)}
@@ -1028,8 +1029,7 @@ function rowHTML(r){
   // 메모·특이사항에 '시험X'처럼 적었으면 버튼으로 처리하자고 알려줌
   if(saysNoTest(e.memo)||saysNoTest(e.val)||saysNoTest(e.note))
     h+='<div class="cxhint">메모에 시험 안 본다고 적혀 있어요. <button class="btn" data-cx="'+id+'">오늘 시험 X 처리</button></div>';
-  acts.push('<button class="notebtn x" data-cx="'+id+'">오늘 시험 X</button>');
-  acts.push('<button class="notebtn" data-img="'+id+'">답지 사진'+((e.imgs||[]).length?' '+e.imgs.length+'장':' 넣기')+'</button>');
+  acts.push('<button class="notebtn photo" data-img="'+id+'">답지 사진'+((e.imgs||[]).length?' '+e.imgs.length+'장':' 넣기')+'</button>');
   if(r.kind==='retest')
     acts.push('<button class="notebtn" data-edt="names|'+id+'">누가 보는지 고치기</button>');
   if(r.kind==='retest'&&(r.it.names||[]).length){
@@ -1048,6 +1048,7 @@ function rowHTML(r){
   more.push('<button class="notebtn danger" data-edt="del|'+id+'">'
     +(r.it.once?'이 시험 지우기':'매주 없애기')+'</button>');
   const mOpen=moreOpen[id]||(edt&&edt.id===id&&['num','move','off','kind','del'].includes(edt.type));
+  acts.push('<button class="notebtn x" data-cx="'+id+'">오늘 시험 X</button>');   // 더보기 바로 왼쪽
   acts.push('<button class="notebtn more" data-more="'+id+'">'+(mOpen?'접기 ▲':'더보기 ▼')+'</button>');
   h+='<div class="acts">'+acts.join('')+'</div>';
   if(mOpen)h+='<div class="acts more">'+more.join('')+'</div>';
