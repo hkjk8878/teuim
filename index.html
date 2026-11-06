@@ -130,6 +130,14 @@
   #lb img{max-width:100%;max-height:100%;object-fit:contain}
   .notebtn{border:1px solid rgba(0,0,0,.2);background:rgba(255,255,255,.65);border-radius:3px;padding:4px 9px;font-family:inherit;font-size:12px;color:var(--ink-soft);cursor:pointer}
   .notebtn:active{background:rgba(0,0,0,.06)}
+  .notebtn{min-height:38px;padding:6px 11px;font-size:13px}
+  .notebtn.x{color:var(--ink);background:#fff;border:1.5px solid #4A4A45;font-weight:700}
+  .notebtn.more{background:transparent;border-style:dashed}
+  .notebtn.danger{color:var(--red);border-color:rgba(200,60,50,.45)}
+  .acts.more{margin-top:6px;padding-top:6px;border-top:1px dashed rgba(0,0,0,.15)}
+  .cxhint{margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;background:#fff;border:1px solid #4A4A45;border-radius:3px;padding:8px 10px}
+  .cxhint .btn{padding:6px 12px;font-size:13px}
+  .cxsel{font-family:inherit;font-size:13px;min-height:38px;border:1px solid rgba(0,0,0,.2);border-radius:3px;background:#fff;padding:0 6px}
   .notebtn.has{color:var(--red);border-color:var(--red)}
   .numbtn{font-family:inherit;font-size:19px;font-weight:700;border:none;background:none;padding:0 1px;color:inherit;cursor:pointer;border-bottom:2px dotted currentColor}
   .empty{border:1px dashed var(--grid);border-radius:3px;padding:16px 14px;text-align:center;color:var(--ink-soft);font-size:14px}
@@ -162,6 +170,30 @@
   .row.c-leave{background:#FFF7B8;border-color:var(--hl-edge)}
   .row.c-mark{background:#E2EDFB;border-color:#9CBEE2}
   .cev.c-mark.off{background:#2F6FB5;color:#fff;font-weight:600}
+  .afform .afstep{display:flex;align-items:baseline;gap:6px;margin:14px 0 6px;font-size:14px}
+  .afform .afstep:first-of-type{margin-top:8px}
+  .afform .afn{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:var(--ink);color:#fff;font-size:11px;font-weight:700;flex:none}
+  .afform .afsub{font-size:12px;color:var(--ink-soft);font-weight:400}
+  .afform .aflabel{display:block;font-size:12px;color:var(--ink-soft);margin:8px 0 4px}
+  .afform .nm{min-height:36px}
+  .afform .af3{grid-template-columns:1.3fr .7fr 1fr;margin-top:0}
+  .afform .afhave{margin-top:8px;font-size:12px;color:var(--ink-soft);background:rgba(0,0,0,.03);border-radius:3px;padding:7px 10px;line-height:1.6}
+  .afform .afhave b{color:var(--ink);font-weight:600}
+  .afform .afdup{margin-top:14px;border:2px solid var(--red);background:#FFF1EE;border-radius:6px;padding:12px}
+  .afform .afdup .t{font-size:15px;font-weight:700;color:var(--red);margin-bottom:6px}
+  .afform .afdup .it{font-size:13px;background:#fff;border-radius:3px;padding:6px 8px;margin-bottom:4px}
+  .afform .afdup .s{font-size:13px;margin:8px 0 10px;line-height:1.5}
+  .afform .afnew{display:block;margin:10px 0 0;padding:4px 0;border:none;background:none;font-family:inherit;font-size:13px;color:var(--ink-soft);text-decoration:underline;cursor:pointer}
+  .row.flash{outline:3px solid var(--red);outline-offset:2px;transition:outline-color .3s}
+  .afform .afphoto{display:flex;align-items:center;gap:10px;width:100%;padding:14px;border:2px dashed #4A7FB8;border-radius:6px;background:#EEF4FB;color:#1F4E80;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;text-align:left}
+  .afform .afphoto .cam{font-size:22px;line-height:1}
+  .afform .afphoto small{margin-left:auto;font-size:12px;font-weight:400;color:#4A6A8C}
+  .afform .afphoto.has{border-style:solid;background:#fff}
+  .afform .afmore{display:flex;align-items:baseline;gap:8px;width:100%;margin-top:14px;padding:9px 10px;border:1px dashed var(--grid);border-radius:3px;background:transparent;font-family:inherit;font-size:13px;font-weight:600;color:var(--ink);cursor:pointer;text-align:left}
+  .afform .afmore span{font-weight:400;color:var(--ink-soft);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+  .cxrow{background:transparent;border-style:dashed;opacity:.8}
+  .cxrow .what{color:var(--ink-soft);text-decoration:line-through}
+  .cxtag{font-size:11px;font-weight:700;color:#fff;background:#8A8A84;border-radius:3px;padding:1px 6px;white-space:nowrap}
   .offtag{white-space:nowrap;display:inline-block;font-size:11px;font-weight:700;color:#fff;background:#2F6FB5;border-radius:3px;padding:1px 5px;margin-left:4px}
   .offchk{grid-column:1/-1;display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer}
   .offchk input{width:18px;height:18px;margin:0}
@@ -578,6 +610,8 @@ const RULES={};
 let cfg=seed(), logs={}, sel=null, tab='day', memory=false, open={}, addOpen=false, editing={};
 let rosOpen=null, dayOpen={}, rosSecOpen=false, rosNew=null, rosMg='', showDead=false;
 let calMo=null, calDay=null, calAdd=null, calEdit=null;  // calAdd={start,end,ty,tx}
+let moreOpen={}, afMore=false;
+const saysNoTest=t=>/^\s*(오늘\s*)?(시험\s*(x|X|×|엑스|없음|안\s*봄|취소)|안\s*봄|no\s*test)\s*[.!]*\s*$/i.test(t||'');
 let rtOpen=null, rtSel={}, rtDate='', rtWhat='', rtRound=1, rtKind='vocab', rtAll=false;
 let afCls='', afNew='', afKind='vocab', afDate='', afN='', afWhat='', afNote='', afPrint='', afSel={}, afRound=1, afRKind='vocab', afRep='one', afBook=null, afPick={}, afImgs=[];
 
@@ -701,7 +735,7 @@ function seqIndex(it,date){
 }
 function resolve(it,date,ignoreHol){
   if(it.off)return null;
-  if(it.once){ if(it.once!==date)return null; }
+  if(it.once){ if(it.once!==date)return null; if(it.hide&&it.hide.indexOf(date)>=0)return null; }
   else{
     if(it.kind==='seq'){ if((it.wds||[]).indexOf(parse(date).getDay())<0)return null }
     else if(parse(date).getDay()!==it.wd)return null;
@@ -843,6 +877,13 @@ function rank(r){
   const gi=BOOKG.findIndex(g=>g.f(r));
   return 10+(gi<0?BOOKG.length:gi);
 }
+function cancelledOn(d){
+  return cfg.items.filter(i=>i.cx&&i.cx[d]).map(i=>{
+    const tmp=Object.assign({},i,{skip:(i.skip||[]).filter(x=>x!==d),hide:(i.hide||[]).filter(x=>x!==d)});
+    const r=resolve(tmp,d); if(!r)return null;
+    r.it=i; return {r,how:i.cx[d]};
+  }).filter(Boolean).sort((a,b)=>rank(a.r)-rank(b.r)||cidx(a.r.cls)-cidx(b.r.cls));
+}
 function forDate(d){
   return cfg.items.map(i=>resolve(i,d)).filter(Boolean)
     .sort((a,b)=>rank(a)-rank(b)||cidx(a.cls)-cidx(b.cls)||a.cls.localeCompare(b.cls));
@@ -983,7 +1024,11 @@ function rowHTML(r){
       +'<button class="thx'+(armed==='img'+id+i?' arm':'')+'" data-delimg="'+id+'|'+i+'">'
       +(armed==='img'+id+i?'!':'✕')+'</button></span>').join('')+'</div>';
   }
-  const acts=[];
+  const acts=[], more=[];
+  // 메모·특이사항에 '시험X'처럼 적었으면 버튼으로 처리하자고 알려줌
+  if(saysNoTest(e.memo)||saysNoTest(e.val)||saysNoTest(e.note))
+    h+='<div class="cxhint">메모에 시험 안 본다고 적혀 있어요. <button class="btn" data-cx="'+id+'">오늘 시험 X 처리</button></div>';
+  acts.push('<button class="notebtn x" data-cx="'+id+'">오늘 시험 X</button>');
   acts.push('<button class="notebtn" data-img="'+id+'">답지 사진'+((e.imgs||[]).length?' '+e.imgs.length+'장':' 넣기')+'</button>');
   if(r.kind==='retest')
     acts.push('<button class="notebtn" data-edt="names|'+id+'">누가 보는지 고치기</button>');
@@ -992,17 +1037,20 @@ function rowHTML(r){
     if(left.length&&left.length<r.it.names.length)
       acts.push('<button class="notebtn" data-next="'+id+'">남은 '+left.length+'명 '+roundName((r.it.round||1)+1)+' 잡기</button>');
   }
-  if(r.num!=null)acts.push('<button class="notebtn" data-edt="num|'+id+'">'+r.ul+' 번호 고치기</button>');
+  if(r.num!=null)more.push('<button class="notebtn" data-edt="num|'+id+'">'+r.ul+' 번호 고치기</button>');
   acts.push('<button class="notebtn'+((e.note||r.it.note)?' has':'')+'" data-edt="note|'+id+'">'
     +((e.note||r.it.note)?'특이사항 있음':'특이사항 적기')+'</button>');
   acts.push('<button class="notebtn" data-rt="'+id+'">재시험 잡기</button>');
-  acts.push(r.it.once
+  more.push(r.it.once
     ? '<button class="notebtn" data-edt="move|'+id+'">날짜 바꾸기</button>'
-    : '<button class="notebtn" data-edt="off|'+id+'">오늘 시험 X</button>');
-  acts.push('<button class="notebtn" data-edt="kind|'+id+'">종류 바꾸기</button>');
-  acts.push('<button class="notebtn" data-edt="del|'+id+'">'
+    : '<button class="notebtn" data-edt="off|'+id+'">다른 날로 옮기기</button>');
+  more.push('<button class="notebtn" data-edt="kind|'+id+'">종류 바꾸기</button>');
+  more.push('<button class="notebtn danger" data-edt="del|'+id+'">'
     +(r.it.once?'이 시험 지우기':'매주 없애기')+'</button>');
+  const mOpen=moreOpen[id]||(edt&&edt.id===id&&['num','move','off','kind','del'].includes(edt.type));
+  acts.push('<button class="notebtn more" data-more="'+id+'">'+(mOpen?'접기 ▲':'더보기 ▼')+'</button>');
   h+='<div class="acts">'+acts.join('')+'</div>';
+  if(mOpen)h+='<div class="acts more">'+more.join('')+'</div>';
   if(edt&&edt.id===id)h+=edtPanel(r);
   if(rtOpen===id)h+=rtPanel(r);
 
@@ -1189,6 +1237,25 @@ function viewDay(){
       g.t==='백지'?'t-blank':'t-book');
   });
   h+=sec('자체교재', '뽑지 말고 Day만 적어주기', self, '없음', 't-self');
+  const gone=cancelledOn(sel);
+  if(gone.length){
+    h+='<div class="sec"><div class="sec-h"><b>오늘 안 보는 시험</b><span>'+gone.length+'개 · 잘못 뺐으면 되돌리기</span></div>';
+    gone.forEach(({r,how})=>{
+      const lab=how==='next'?'다음 번으로 미룸':how==='none'?'안 봄 (넘김)':(how.slice(10).replace('-','/')+'로 옮김');
+      const pick=(how.startsWith('date:'))?'':'<select class="cxsel" data-cxhow="'+r.it.id+'">'
+        +(r.it.once?'':'<option value="next"'+(how==='next'?' selected':'')+'>진도 다음 번으로 미룸</option>')
+        +'<option value="none"'+(how==='none'?' selected':'')+'>그냥 넘김 (진도 그대로)</option>'
+        +'<option value="date">다른 날에 보기…</option></select>';
+      h+='<div class="row cxrow"><div class="top">'
+       +'<div class="code">'+esc(r.cls)+'</div><span class="cxtag">'+lab+'</span>'
+       +'<div style="margin-left:auto;font-size:12px;color:var(--ink-soft)">'+(r.n||0)+'장</div></div>'
+       +'<div class="what">'+content(r)+'</div>'
+       +'<div class="acts">'+(how.startsWith('date:')
+          ?'<button class="notebtn" data-cxgo="'+how.slice(5)+'">그날로 가보기</button>'
+          :pick+'<button class="notebtn" data-cxundo="'+r.it.id+'">되돌리기</button>')+'</div></div>';
+    });
+    h+='</div>';
+  }
   if(isHol(sel)){
     const off=cfg.items.map(i=>resolve(i,sel,true)).filter(Boolean)
       .filter(r=>!r.it.once&&!(r.it.did||[]).includes(sel))
@@ -1212,70 +1279,110 @@ function viewDay(){
 }
 
 function addForm(){
+  /* 순서 = 생각하는 순서: 어느 반 → 무슨 시험 → 범위 → (날짜·장수·반복은 미리 채워져 있음) → 가끔 쓰는 칸은 접어둠 */
   const picked0=Object.keys(afPick).filter(k=>afPick[k]).sort((a,b)=>cidx(a)-cidx(b));
   const cls = normCls(picked0.join(' & '));
   const names = afKind==='retest' ? roster(cls) : [];
   const picked = Object.keys(afSel).filter(k=>afSel[k]);
   const auto = afKind==='retest' ? (picked.length||1) : headcount(cls);
-  let h='<div class="item" style="margin-bottom:14px">'
-   +'<div class="line1"><b>시험 추가</b></div><div class="fields">'
-   +'<div><label>날짜</label><input type="date" id="ad" value="'+esc(afDate)+'"></div>'
-   +'<div><label>종류</label><select id="ak">'
-     +CHOICES.map(c=>'<option value="'+c.v+'"'+(afKind===c.v?' selected':'')+'>'+c.t+'</option>').join('')
-     +'</select></div>'
-   +'<div style="grid-column:1/-1"><label>반 <span style="color:var(--ink-soft)">(여러 반이 같이 보면 여러 개 고르세요)</span></label>'
-     +'<div class="names">'
-     +allClasses().filter(x=>x.indexOf('&')<0).map(x=>
-        '<button class="nm'+(afPick[x]?' on':'')+'" data-acl="'+esc(x)+'">'+esc(x)+'</button>').join('')
-     +'</div>'
-     +'<div style="font-size:11px;color:var(--ink-soft);margin-top:4px">'
-     +(cls?'고른 반: <b>'+esc(cls)+'</b> · '+headcount(cls)+'명':'반을 골라주세요')+'</div></div>'
-   +'<div><label>몇 장</label><input type="number" id="an" value="'+esc(afN!==''?afN:auto)+'"></div>'
-   +(afKind==='retest'?'<div><label>차수</label><select id="ar">'
-       +[1,2,3].map(v=>'<option value="'+v+'"'+(afRound===v?' selected':'')+'>'+roundName(v)+'</option>').join('')
-       +'</select></div>'
-       +'<div><label>무슨 시험</label><select id="arw">'
-       +RCH.map(c=>'<option value="'+c.v+'"'+(afRKind===c.v?' selected':'')+'>'+c.t+'</option>').join('')
-       +'</select></div>':'')
-   +(afKind==='retest'?'':'<div><label>반복</label><select id="arp">'
-       +'<option value="one"'+(afRep==='one'?' selected':'')+'>이 날만</option>'
-       +'<option value="week"'+(afRep==='week'?' selected':'')+'>매주 '+DAYK[parse(afDate||sel).getDay()]+'요일마다</option>'
-       +'</select></div>')
-   +'<div><label>비고</label><input id="ao" value="'+esc(afNote)+'" placeholder="메모"></div>'
-   +'<div style="grid-column:1/-1"><label>이 시험 교재 <span style="color:var(--ink-soft)">(비우면 '+esc(bookOf(cls,afDate||sel)||'없음')+')</span></label>'
-     +'<input id="abk" value="'+esc(afBook!=null?afBook:'')+'" placeholder="'+esc(bookOf(cls,afDate||sel)||'예: Bricks Reading1')+'"></div>'
-   +'<div style="grid-column:1/-1"><label>'+(bookFor(afKind==='retest'?afRKind:afKind, cls)
-       ? bookFor(afKind==='retest'?afRKind:afKind, cls)+' — 어디까지' : '범위 / 내용')+'</label><input id="at" value="'+esc(afWhat)+'" placeholder="'+(bookFor(afKind==='retest'?afRKind:afKind, cls)?'예: Day 5':'예: Unit 7 / Day 15')+'"></div>'
+  const bk = bookFor(afKind==='retest'?afRKind:afKind, cls);
+  const step=(n,t,extra)=>'<div class="afstep"><span class="afn">'+n+'</span><b>'+t+'</b>'+(extra?'<span class="afsub">'+extra+'</span>':'')+'</div>';
+  let h='<div class="item afform" style="margin-bottom:14px">'
+   +'<div class="line1"><b>시험 추가</b></div>';
+
+  // ① 반
+  h+=step(1,'반', cls?'<b>'+esc(cls)+'</b> · '+headcount(cls)+'명':'')
+   +'<div class="names">'
+   +allClasses().filter(x=>x.indexOf('&')<0).map(x=>
+      '<button class="nm'+(afPick[x]?' on':'')+'" data-acl="'+esc(x)+'">'+esc(x)+'</button>').join('')
    +'</div>';
-  if(afKind==='retest'){
-    h+= names.length
-      ? '<div style="font-size:11px;color:var(--ink-soft);margin:8px 0 4px">누가 보나요 (여러 명)</div><div class="names">'
-        + names.map(nm=>'<button class="nm'+(afSel[nm]?' on':'')+'" data-afn="'+esc(nm)+'">'+esc(nm)+'</button>').join('')
-        + '</div>'
-      : '<div style="font-size:11px;color:var(--ink-soft);margin:8px 0 0">이 반은 명단이 없어요. 위 칸에 이름을 적어주세요.</div>';
-  }
   const already = cls ? (function(){
     const k=sel; sel=afDate||sel;
     const rows=forDate(sel).filter(r=>r.cls===cls);
     sel=k; return rows;
   })() : [];
   const sameKind = already.some(r=>r.kind===choice(afKind).kind);
+  const dupRows=already.filter(r=>r.kind===choice(afKind).kind);
   if(already.length){
-    h+='<div class="rule" style="margin:10px 0 0'+(sameKind?';border-left-color:var(--red);background:#FFF1EE':'')+'">'
-     +'<b>'+esc(cls)+'</b> 은 '+esc(d2s(afDate||sel))+' 에 이미 이게 있어요<br>'
-     +already.map(r=>'· '+content(r).replace(/<[^>]+>/g,'')).join('<br>')
-     +(sameKind?'<br><b>같은 종류예요. 그래도 넣으면 두 개가 됩니다.</b>':'')
-     +'</div>';
+    h+='<div class="afhave"><b>'+esc(cls)+' · '+esc(d2s(afDate||sel))+'에 이미 있는 시험</b>'
+     +already.map(r=>'<div>· '+content(r).replace(/<[^>]+>/g,'')+'</div>').join('')+'</div>';
   }
-  h+='<div style="margin-top:10px">'
-   +(afImgs.length?'<div class="thumbs">'+afImgs.map((v,i)=>
+
+  // ② 무슨 시험 — 누르면 바로 골라짐
+  h+=step(2,'무슨 시험')
+   +'<div class="names">'+CHOICES.map(c=>'<button class="nm'+(afKind===c.v?' on':'')+'" data-akc="'+c.v+'">'+esc(c.t)+'</button>').join('')+'</div>';
+  if(afKind==='retest'){
+    h+='<div class="fields" style="margin-top:8px">'
+     +'<div><label>차수</label><select id="ar">'
+       +[1,2,3].map(v=>'<option value="'+v+'"'+(afRound===v?' selected':'')+'>'+roundName(v)+'</option>').join('')+'</select></div>'
+     +'<div><label>무엇의 재시험</label><select id="arw">'
+       +RCH.map(c=>'<option value="'+c.v+'"'+(afRKind===c.v?' selected':'')+'>'+c.t+'</option>').join('')+'</select></div>'
+     +'</div>'
+     +'<label class="aflabel">누가 보나요 <span>(여러 명)</span></label>'
+     +(names.length
+        ? '<div class="names">'+names.map(nm=>'<button class="nm'+(afSel[nm]?' on':'')+'" data-afn="'+esc(nm)+'">'+esc(nm)+'</button>').join('')+'</div>'
+        : '<div class="afsub" style="display:block">'+(cls?'이 반은 명단이 없어요. 범위 칸에 이름을 같이 적어주세요.':'반을 먼저 골라주세요')+'</div>');
+  }
+
+  // ③ 범위 — 자체교재는 반마다 교재가 달라서 교재 칸을 바로 보여줌
+  const curBook=bookOf(cls,afDate||sel)||'';
+  const isSelf=afKind==='self';
+  if(isSelf){
+    h+=step(3,'교재 · 어디까지')
+     +'<div class="fields" style="margin-top:0">'
+     +'<div><label>교재 <span style="color:var(--ink-soft)">'+(curBook?'(비우면 '+esc(curBook)+')':'')+'</span></label>'
+     +'<input id="abk" value="'+esc(afBook!=null?afBook:'')+'" placeholder="'+esc(curBook||'예: 뜯중 1800')+'"></div>'
+     +'<div><label>어디까지</label><input id="at" value="'+esc(afWhat)+'" placeholder="예: Day 5"></div>'
+     +'</div>';
+  }else{
+    h+=step(3, bk? bk+' — 어디까지' : '범위 / 내용')
+     +'<textarea class="memo" id="at" rows="2" style="margin-top:0" placeholder="'+(bk?'예: Day 5':'예: Unit 7 / Day 15')+'">'+esc(afWhat)+'</textarea>';
+  }
+
+  // ④ 날짜·장수·반복 — 미리 채워져 있어서 보통은 안 건드려도 됨
+  h+=step(4,'날짜 · 장수')
+   +'<div class="fields af3">'
+   +'<div><label>날짜</label><input type="date" id="ad" value="'+esc(afDate)+'"></div>'
+   +'<div><label>몇 장</label><input type="number" inputmode="numeric" id="an" value="'+esc(afN!==''?afN:auto)+'"></div>'
+   +(afKind==='retest'?'':'<div><label>반복</label><select id="arp">'
+       +'<option value="one"'+(afRep==='one'?' selected':'')+'>이 날만</option>'
+       +'<option value="week"'+(afRep==='week'?' selected':'')+'>매주 '+DAYK[parse(afDate||sel).getDay()]+'요일</option>'
+       +'</select></div>')
+   +'</div>';
+
+  // ⑤ 답지 사진 — 눈에 띄게
+  h+=step(5,'답지 사진', afImgs.length?afImgs.length+'장':'')
+   +(afImgs.length?'<div class="thumbs" style="margin:0 0 6px">'+afImgs.map((v,i)=>
       '<span class="th"><img src="'+esc(imgSrc(v))+'" data-big="'+esc(imgSrc(v))+'" alt="답지">'
       +'<button class="thx" data-aimgdel="'+i+'">✕</button></span>').join('')+'</div>':'')
-   +'<button class="notebtn" data-aimg="1" style="margin-top:6px">답지 사진'
-   +(afImgs.length?' '+afImgs.length+'장 · 더 넣기':' 넣기')+'</button></div>';
-  h+='<div class="toolbar"><button class="btn" data-addok="1">'
-   +(sameKind&&armed==='dup'?'그래도 넣기':'추가')+'</button>'
-   +'<button class="btn ghost" data-addcancel="1">취소</button></div></div>';
+   +'<button class="afphoto'+(afImgs.length?' has':'')+'" data-aimg="1"><span class="cam">📷</span>'
+   +(afImgs.length?'사진 더 넣기':'답지 사진 넣기')+'</button>';
+
+  // 가끔 쓰는 칸: 특이사항(줄의 '특이사항 적기'와 같은 칸) · 교재 — 적힌 게 있으면 펼쳐서 보여줌
+  const moreOn=afMore||afNote||(!isSelf&&afBook!=null&&afBook!=='');
+  h+='<button class="afmore" data-afmore="1">'+(moreOn?'▲':'▼')+(isSelf?' 특이사항':' 특이사항 · 교재')
+   +'<span>'+(afNote?'특이사항 있음':'특이사항 없음')+(isSelf?'':' · 교재 '+esc((afBook||curBook)||'없음'))+'</span></button>';
+  if(moreOn){
+    h+='<div class="fields" style="margin-top:6px">'
+     +'<div style="grid-column:1/-1"><label>특이사항'+(afKind!=='retest'&&afRep==='week'?' <span style="color:var(--ink-soft)">(매주 이 시험에 따라다님)</span>':'')+'</label>'
+     +'<input id="ao" value="'+esc(afNote)+'" placeholder="예: 김민준은 이 시험 안 봄"></div>'
+     +(isSelf?'':'<div style="grid-column:1/-1"><label>이 시험 교재 <span style="color:var(--ink-soft)">(비우면 '+esc(curBook||'없음')+')</span></label>'
+       +'<input id="abk" value="'+esc(afBook!=null?afBook:'')+'" placeholder="'+esc(curBook||'예: Bricks Reading1')+'"></div>')
+     +'</div>';
+  }
+
+  if(dupRows.length){
+    const kt=CHOICES.find(c=>c.v===afKind).t;
+    h+='<div class="afdup"><div class="t">⚠ 이미 있는 '+esc(kt)+' 시험이에요</div>'
+     +dupRows.map(r=>'<div class="it"><b>'+esc(r.cls)+'</b> · '+esc(d2s(afDate||sel))+' · '+content(r).replace(/<[^>]+>/g,'')+'</div>').join('')
+     +'<div class="s">적은 범위·사진·특이사항을 이 시험에 넣어요.</div></div>';
+    h+='<div class="toolbar"><button class="btn" data-afgo="'+dupRows[0].it.id+'">있는 시험에 넣기</button>'
+     +'<button class="btn ghost" data-addcancel="1">취소</button></div>'
+     +'<button class="afnew" data-addok="1">따로 새로 만들기</button></div>';
+  }else{
+    h+='<div class="toolbar"><button class="btn" data-addok="1">추가</button>'
+     +'<button class="btn ghost" data-addcancel="1">취소</button></div></div>';
+  }
   return h;
 }
 
@@ -1619,13 +1726,13 @@ function ttShrink(file){            // 시간표는 글씨가 작아서 일반 �
 
 /* ── 서류: 파일을 올리고 아래 목록에 한 줄 추가하면 됩니다 ── */
 const DOCS=[
-  {t:'연차사용확인서', d:'연차를 쓸 때 작성하는 서류예요. PDF는 바로 인쇄해서 손으로 쓰고, Word는 컴퓨터에서 입력해서 뽑을 때 쓰세요.',
+  {t:'연차사용확인서', d:'',
    files:[{h:'leave.pdf',n:'연차사용확인서.pdf',l:'PDF (바로 인쇄)'},{h:'leave.docx',n:'연차사용확인서.docx',l:'Word로 받기'}]},
   {t:'재직증명서', d:'준비 중이에요.', files:[]}
 ];
 function viewDocs(){
   return '<div class="sec"><div class="sec-h"><b>서류</b><span>필요할 때 받아서 뽑아 쓰세요</span></div>'
-   +DOCS.map(x=>'<div class="doc'+(x.files.length?'':' wait')+'"><h3>'+esc(x.t)+'</h3><p>'+esc(x.d)+'</p>'
+   +DOCS.map(x=>'<div class="doc'+(x.files.length?'':' wait')+'"><h3 style="margin-bottom:10px">'+esc(x.t)+'</h3>'+(x.d?'<p>'+esc(x.d)+'</p>':'')
      +(x.files.length?'<div class="acts">'+x.files.map((f,i)=>'<a class="btn'+(i?' ghost':'')+'" href="'+f.h+'" download="'+esc(f.n)+'">'+esc(f.l)+'</a>').join('')+'</div>':'')
      +'</div>').join('')+'</div>';
 }
@@ -1662,6 +1769,35 @@ function viewSet(){
 function resolve0(it){return {it,kind:it.kind,book:it.book||''}}
 
 function wire(){
+  document.querySelectorAll('[data-more]').forEach(b=>b.onclick=()=>{const k=b.dataset.more;moreOpen[k]=!moreOpen[k];if(!moreOpen[k]&&edt&&edt.id===k)edt=null;render()});
+  document.querySelectorAll('[data-cx]').forEach(b=>b.onclick=async()=>{
+    const it=cfg.items.find(x=>x.id===b.dataset.cx); if(!it)return;
+    it.cx=Object.assign({},it.cx);
+    if(it.once){ it.hide=(it.hide||[]).concat([sel]); it.cx[sel]='none' }      // 이 날만 있던 시험은 그냥 안 봄
+    else{ it.skip=(it.skip||[]).concat([sel]); it.cx[sel]='next' }             // 매주 시험은 진도를 다음 번으로 미룸
+    const e=entry(sel,it.id);
+    ['memo','val','note'].forEach(k=>{ if(saysNoTest(e[k]))delete e[k] });  // '시험X' 메모는 이제 필요 없음
+    edt=null; await saveCfg(); render();
+    toast(it.once?'오늘 안 봐요':'오늘 안 봐요 · 진도는 다음 번으로');
+  });
+  document.querySelectorAll('[data-cxhow]').forEach(se=>se.onchange=async()=>{
+    const it=cfg.items.find(x=>x.id===se.dataset.cxhow); if(!it)return;
+    const v=se.value;
+    it.skip=(it.skip||[]).filter(x=>x!==sel); it.hide=(it.hide||[]).filter(x=>x!==sel);
+    if(v==='date'){                                     // 날짜 고르는 칸을 띄움
+      if(it.cx){ delete it.cx[sel] }
+      edt={id:it.id,type:'off',v:'date'}; moreOpen[it.id]=true; await saveCfg(); render(); return;
+    }
+    if(v==='next')it.skip.push(sel); else it.hide.push(sel);
+    it.cx[sel]=v; await saveCfg(); render(); toast(v==='next'?'다음 번으로 미뤘어요':'그냥 넘겼어요');
+  });
+  document.querySelectorAll('[data-cxgo]').forEach(b=>b.onclick=()=>go(b.dataset.cxgo));
+  document.querySelectorAll('[data-cxundo]').forEach(b=>b.onclick=async()=>{
+    const it=cfg.items.find(x=>x.id===b.dataset.cxundo); if(!it)return;
+    it.skip=(it.skip||[]).filter(x=>x!==sel); it.hide=(it.hide||[]).filter(x=>x!==sel);
+    if(it.cx){ delete it.cx[sel]; if(!Object.keys(it.cx).length)delete it.cx }
+    await saveCfg(); render(); toast('되돌렸어요');
+  });
   document.querySelectorAll('[data-tt]').forEach(b=>b.onclick=()=>{ttDay=+b.dataset.tt;armed=null;render()});
   const ttup=document.querySelector('[data-ttup]');
   if(ttup)ttup.onclick=()=>{ if(!ttBusy) $('#ttin').click() };
@@ -1677,13 +1813,13 @@ function wire(){
     const e=entry(sel,b.dataset.pr); e.pr=!e.pr; await saveLog(mo); render();
   });
   document.querySelectorAll('[data-memo]').forEach(t=>t.onchange=async()=>{
-    entry(sel,t.dataset.memo).memo=t.value; await saveLog(mo); toast('저장');
+    entry(sel,t.dataset.memo).memo=t.value; await saveLog(mo); toast('저장'); if(saysNoTest(t.value))render();
   });
   document.querySelectorAll('[data-note]').forEach(t=>t.onchange=async()=>{
     entry(sel,t.dataset.note).note=t.value; await saveLog(mo); toast('저장'); render();
   });
   document.querySelectorAll('[data-val]').forEach(t=>t.onchange=async()=>{
-    entry(sel,t.dataset.val).val=t.value; await saveLog(mo); toast('저장');
+    entry(sel,t.dataset.val).val=t.value; await saveLog(mo); toast('저장'); if(saysNoTest(t.value))render();
   });
   document.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>{open[b.dataset.open]=!open[b.dataset.open];render()});
   const grab=()=>{
@@ -1839,8 +1975,9 @@ function wire(){
     }
     if(t==='off'||t==='move'){
       const how = t==='move' ? 'date' : (val||'next');
-      if(how==='next'){ it.skip=(it.skip||[]).concat([sel]); }
-      else if(how==='none'){ it.hide=(it.hide||[]).concat([sel]); }
+      const mark=v=>{ if(!it.once){ it.cx=Object.assign({},it.cx); it.cx[sel]=v } };  // '오늘 안 본 시험'에 남겨둘 기록
+      if(how==='next'){ it.skip=(it.skip||[]).concat([sel]); mark('next'); }
+      else if(how==='none'){ it.hide=(it.hide||[]).concat([sel]); mark('none'); }
       else{
         const when=(document.querySelector(t==='move'?'#ev':'#ev2')||{}).value;
         if(!when){toast('날짜를 골라주세요');return}
@@ -1855,7 +1992,7 @@ function wire(){
           if(rr&&rr.num!=null){ cp.base=rr.num; cp.anchor=when }
           cfg.items.push(cp);
           if(isHol(sel)) it.did=(it.did||[]).concat([sel]);
-          else it.hide=(it.hide||[]).concat([sel]);
+          else{ it.hide=(it.hide||[]).concat([sel]); mark('date:'+when); }
         }
         const from=logs[mo], e2=from&&from[sel]&&from[sel][it.id];
         if(e2){
@@ -1946,14 +2083,36 @@ function wire(){
     const rp=g('#arp'); if(rp!==null)afRep=rp;
     const bk=g('#abk'); if(bk!==null)afBook=bk;
   };
+  const afg=document.querySelector('[data-afgo]');
+  if(afg)afg.onclick=async()=>{
+    grabAF();
+    const id=afg.dataset.afgo, d=afDate||sel, it=cfg.items.find(x=>x.id===id);
+    if(it&&(afWhat.trim()||afImgs.length||afNote.trim())){
+      await loadLog(d.slice(0,7));
+      const e=entry(d,id);
+      if(afWhat.trim())e.memo=[e.memo,afWhat.trim()].filter(Boolean).join('\n');
+      if(afImgs.length)e.imgs=(e.imgs||[]).concat(afImgs);
+      if(afNote.trim())e.note=[e.note,afNote.trim()].filter(Boolean).join(' / ');
+      await saveLog(d.slice(0,7)); toast('있는 시험에 넣었어요');
+    }
+    addOpen=false; afImgs=[];
+    if(d!==sel)await go(d); else render();
+    const btn=document.querySelector('[data-cx="'+id+'"]'), row=btn&&btn.closest('.row');
+    if(row){ row.scrollIntoView({behavior:'smooth',block:'center'}); row.classList.add('flash'); setTimeout(()=>row.classList.remove('flash'),2400) }
+  };
+  document.querySelectorAll('[data-akc]').forEach(b=>b.onclick=()=>{
+    grabAF(); afKind=b.dataset.akc; afN=''; armed=null; render();
+  });
+  const afm=document.querySelector('[data-afmore]');
+  if(afm)afm.onclick=()=>{ grabAF(); afMore=!(afMore||afNote||(afBook!=null&&afBook!=='')); render() };
   document.querySelectorAll('[data-acl]').forEach(b=>b.onclick=()=>{
     grabAF(); const k=b.dataset.acl;
-    afPick[k]=!afPick[k]; afSel={}; afBook=null; afN=''; armed=null; render();
+    afPick[k]=!afPick[k]; afSel={}; if(!afBook)afBook=null; afN=''; armed=null; render();
   });
   const once=document.querySelector('[data-once]');
   if(once)once.onclick=()=>{
     addOpen=true; afDate=sel; afKind='vocab'; afPick={};
-    afNew=''; afN=''; afWhat=''; afNote=''; afPrint=''; afSel={}; afRound=1; afRKind='vocab'; afRep='one'; afBook=null; armed=null; render();
+    afNew=''; afN=''; afWhat=''; afNote=''; afPrint=''; afSel={}; afRound=1; afRKind='vocab'; afRep='one'; afBook=null; afMore=false; armed=null; render();
   };
   ['#ak','#ar','#arw','#arp','#ad'].forEach(id=>{
     const el=document.querySelector(id);
@@ -1972,7 +2131,7 @@ function wire(){
     if(!afDate){toast('날짜를 골라주세요');return}
     const dupRows=(function(){ const k=sel; sel=afDate||sel;
       const rows=forDate(sel).filter(r=>r.cls===c&&r.kind===choice(afKind).kind); sel=k; return rows })();
-    if(dupRows.length&&armed!=='dup'){ armed='dup'; render(); toast('이미 있어요. 한 번 더 누르면 넣습니다'); return }
+
     armed=null;
     const picked=Object.keys(afSel).filter(k=>afSel[k]);
     const nv=parseInt(afN,10);
@@ -1982,7 +2141,10 @@ function wire(){
     if(afKind!=='retest'&&afRep==='week'){ it.wd=parse(afDate).getDay(); it.from=afDate }
     else { it.once=afDate }
     if(ch.kind==='retest'){ it.names=picked; it.round=afRound; it.rk=afRKind; it.src=afWhat||''; }
-    else if(ch.kind==='set'){ it.label=[bookFor(afKind,c),afWhat].filter(Boolean).join(' ')||'시험'; }
+    else if(ch.kind==='set'){
+      const ob=(afBook!=null?afBook:'').trim();
+      const head=(afKind==='self'&&ob)?'자체교재 '+ob:bookFor(afKind,c);   // 자체교재에 교재를 적었으면 그 이름으로
+      it.label=[head,afWhat].filter(Boolean).join(' ')||'시험'; }
     else if(afWhat){ it.src=afWhat; }
     if(afNote)it.note=afNote;
     if(ch.noprint)it.noprint=true;
