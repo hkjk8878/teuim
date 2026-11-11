@@ -138,6 +138,18 @@
   .acts.more{margin-top:6px;padding-top:6px;border-top:1px dashed rgba(0,0,0,.15)}
   .cxhint{margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;background:#fff;border:1px solid #4A4A45;border-radius:3px;padding:8px 10px}
   .cxhint .btn{padding:6px 12px;font-size:13px}
+  #savebar{position:fixed;left:12px;right:12px;bottom:14px;z-index:60;display:none;align-items:center;gap:10px;justify-content:space-between;background:#B3261E;color:#fff;font-size:14px;font-weight:600;padding:10px 12px;border-radius:6px;box-shadow:0 4px 14px rgba(0,0,0,.2)}
+  #savebar button{font-family:inherit;font-size:13px;font-weight:700;border:none;border-radius:4px;padding:6px 10px;background:#fff;color:#B3261E;cursor:pointer}
+  .mvopts{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .mvopts .mvopt{display:flex;flex-direction:column;gap:2px;border:1.5px solid var(--grid);border-radius:4px;padding:8px 10px;background:#fff;cursor:pointer;font-size:13px;color:var(--ink);margin:0}
+  .cxrow:has(.cxpanel){opacity:1}
+  .mvopt input{display:none}
+  .mvopt .n{font-weight:700;font-size:14px}
+  .mvopt .t{color:var(--ink-soft);font-size:12px}
+  .mvopt.on{border-color:var(--ink);background:#F4F4EF}
+  .mvopt.on .t{color:var(--ink)}
+  .cxpanel{margin-top:10px;padding:10px;border:1px solid var(--grid);border-radius:3px;background:#fff}
+  .cxrow .cxpanel .what,.cxrow .cxpanel{text-decoration:none}
   .cxsel{font-family:inherit;font-size:13px;min-height:38px;border:1px solid rgba(0,0,0,.2);border-radius:3px;background:#fff;padding:0 6px}
   .notebtn.has{color:var(--red);border-color:var(--red)}
   .numbtn{font-family:inherit;font-size:19px;font-weight:700;border:none;background:none;padding:0 1px;color:inherit;cursor:pointer;border-bottom:2px dotted currentColor}
@@ -611,7 +623,7 @@ const RULES={};
 let cfg=seed(), logs={}, sel=null, tab='day', memory=false, open={}, addOpen=false, editing={};
 let rosOpen=null, dayOpen={}, rosSecOpen=false, rosNew=null, rosMg='', showDead=false;
 let calMo=null, calDay=null, calAdd=null, calEdit=null;  // calAdd={start,end,ty,tx}
-let moreOpen={}, afMore=false;
+let moreOpen={}, afMore=false, cxMove=null;   // cxMove={id,when,push}
 const saysNoTest=t=>/^\s*(오늘\s*)?(시험\s*(x|X|×|엑스|없음|안\s*봄|취소)|안\s*봄|no\s*test)\s*[.!]*\s*$/i.test(t||'');
 let rtOpen=null, rtSel={}, rtDate='', rtWhat='', rtRound=1, rtKind='vocab', rtAll=false;
 let afCls='', afNew='', afKind='vocab', afDate='', afN='', afWhat='', afNote='', afPrint='', afSel={}, afRound=1, afRKind='vocab', afRep='one', afBook=null, afPick={}, afImgs=[];
@@ -647,7 +659,7 @@ async function pushAll(){
   const r = await fetch(WORKER+'/sync', {method:'POST',
     headers:{'Content-Type':'application/json'},
     body: JSON.stringify({room:ROOM, rev, data})});
-  if(!r.ok) throw new Error('sync');
+  if(!r.ok) throw new Error('sync '+r.status);
   const j = await r.json();
   if(j && j.ok===false && j.data){       // 다른 분이 먼저 저장함 → 그쪽을 따름
     rev = j.rev; cfg = j.data.cfg || cfg; logs = j.data.logs || logs;
@@ -701,9 +713,37 @@ async function load(){
     toast('저장소에 연결 못 했어요 — 이 화면에서만 유지됩니다');
   }
 }
-async function saveCfg(){ if(memory)return; try{ await pushAll() }catch(e){ memory=true; toast('저장 실패') } }
+/* 저장: 실패하면 잠깐 뒤 다시 시도. 예전엔 한 번 실패하면 그 뒤로 아무것도 저장 안 됐음 */
+let unsaved=false, retryT=null;
+function saveBar(){                       // 저장 안 된 게 있으면 화면 아래에 계속 떠 있음
+  let el=document.getElementById('savebar');
+  if(!el){ el=document.createElement('div'); el.id='savebar';
+    el.innerHTML='⚠ 저장이 안 됐어요 · 자동으로 다시 저장 중 <button>지금 다시</button>';
+    document.body.appendChild(el);
+    el.querySelector('button').onclick=()=>saveAny(); }
+  el.style.display=unsaved?'flex':'none';
+}
+async function trySave(){
+  for(const wait of [0,1500,4000]){
+    if(wait)await new Promise(r=>setTimeout(r,wait));
+    try{ await pushAll(); return true }catch(e){ lastSaveErr=e&&e.message||'' }
+  }
+  return false;
+}
+let lastSaveErr='';
+async function saveAny(){
+  if(await trySave()){
+    if(unsaved){ unsaved=false; saveBar(); toast('밀려 있던 것까지 저장했어요') }
+    clearTimeout(retryT); retryT=null; return;
+  }
+  unsaved=true; saveBar();
+  clearTimeout(retryT); retryT=setTimeout(()=>{ if(unsaved)saveAny() },15000);
+}
+window.addEventListener('online',()=>{ if(unsaved)saveAny() });
+window.addEventListener('beforeunload',e=>{ if(unsaved){ e.preventDefault(); e.returnValue='' } });
+async function saveCfg(){ if(memory)return; await saveAny() }   // memory = 처음에 불러오기 실패 → 남의 데이터 덮어쓰지 않게 저장 안 함
 async function loadLog(mo){ if(!logs[mo]) logs[mo]={} }
-async function saveLog(){ if(memory)return; try{ await pushAll() }catch(e){ memory=true; toast('저장 실패') } }
+async function saveLog(){ if(memory)return; await saveAny() }
 function entry(date,id){
   const mo=date.slice(0,7);
   const m=logs[mo]||(logs[mo]={});
@@ -877,6 +917,61 @@ function rank(r){
   if(r.kind==='vocab'||r.kind==='each')return 0;
   const gi=BOOKG.findIndex(g=>g.f(r));
   return 10+(gi<0?BOOKG.length:gi);
+}
+/* 다음 정규 시험 날짜와, 이어가기/밀기 했을 때 그날 나올 번호 미리보기 */
+function movePreview(it,d){
+  if(it.once)return null;
+  const cur=resolve(Object.assign({},it,{skip:(it.skip||[]).filter(x=>x!==d),hide:(it.hide||[]).filter(x=>x!==d)}),d);
+  if(!cur||cur.num==null)return null;
+  const keepIt=Object.assign({},it,{skip:(it.skip||[]).filter(x=>x!==d),hide:(it.hide||[]).filter(x=>x!==d).concat([d])});
+  const pushIt=Object.assign({},it,{skip:(it.skip||[]).filter(x=>x!==d).concat([d]),hide:(it.hide||[]).filter(x=>x!==d)});
+  for(let i=1;i<=60;i++){
+    const nd=shift(d,i), a=resolve(keepIt,nd);
+    if(a){ const b=resolve(pushIt,nd);
+      return {date:nd, ul:cur.ul||'Day', now:cur.num, keep:a.num, push:b?b.num:cur.num} }
+  }
+  return null;
+}
+async function moveExam(it,when,push){
+  const mo=sel.slice(0,7);
+  it.skip=(it.skip||[]).filter(x=>x!==sel); it.hide=(it.hide||[]).filter(x=>x!==sel);
+  let newId=it.id;
+  if(it.once){ it.once=when; if(it.cx){ delete it.cx[sel]; if(!Object.keys(it.cx).length)delete it.cx } }
+  else{
+    const rr=resolve(it,sel,true);
+    const cp=Object.assign({},it);
+    ['wd','from','skip','hide','did','cx'].forEach(k=>delete cp[k]);
+    cp.id=newId='m'+Date.now(); cp.once=when;
+    if(rr&&rr.num!=null){ cp.base=rr.num; cp.anchor=when }
+    cfg.items.push(cp);
+    if(isHol(sel)) it.did=(it.did||[]).concat([sel]);
+    else{
+      if(push)it.skip.push(sel); else it.hide.push(sel);
+      it.cx=Object.assign({},it.cx); it.cx[sel]='date:'+when+':'+(push?'push':'keep')+':'+newId;
+    }
+  }
+  const from=logs[mo], e2=from&&from[sel]&&from[sel][it.id];
+  if(e2){
+    await loadLog(when.slice(0,7));
+    const m2=when.slice(0,7);
+    logs[m2][when]=logs[m2][when]||{};
+    logs[m2][when][newId]=e2;
+    delete from[sel][it.id];
+  }
+  await saveCfg();
+  return newId;
+}
+function moveChoiceHTML(it,idp,pushNow){
+  const pv=movePreview(it,sel);
+  if(!pv)return '';
+  const md=pv.date.slice(5).replace('-','/');
+  // 두 가지를 다 보이게 (목록 안에 숨겨두면 하나밖에 없는 줄 앎)
+  const opt=(v,on,num,t)=>'<label class="mvopt'+(on?' on':'')+'"><input type="radio" name="'+idp+'" value="'+v+'"'+(on?' checked':'')+'>'
+    +'<span class="n">'+md+' · '+pv.ul+' '+num+'</span><span class="t">'+t+'</span></label>';
+  return '<div style="grid-column:1/-1"><label>다음 정규 시험은 어떻게 할까요?</label><div class="mvopts">'
+   +opt('keep',!pushNow,pv.keep,'진도 이어가기')
+   +opt('push',pushNow,pv.push,'진도 한 칸 밀기')
+   +'</div></div>';
 }
 function cancelledOn(d){
   return cfg.items.filter(i=>i.cx&&i.cx[d]).map(i=>{
@@ -1158,7 +1253,8 @@ function edtPanel(r){
       +'<option value="none"'+(v==='none'?' selected':'')+'>안 봄 (그냥 넘기기)</option>'
       +'</select></div>'
       +(v==='date'?'<div style="grid-column:1/-1"><label>언제 볼까요</label>'
-        +'<input type="date" id="ev2" value="'+esc(edt.v2||shift(sel,1))+'"></div>':'')
+        +'<input type="date" id="ev2" value="'+esc(edt.v2||shift(sel,1))+'"></div>'
+        :'')
       +'</div>', '이렇게 하기');
   }
   if(t==='skip'){
@@ -1242,18 +1338,25 @@ function viewDay(){
   if(gone.length){
     h+='<div class="sec"><div class="sec-h"><b>오늘 안 보는 시험</b><span>'+gone.length+'개 · 잘못 뺐으면 되돌리기</span></div>';
     gone.forEach(({r,how})=>{
-      const lab=how==='next'?'다음 번으로 미룸':how==='none'?'안 봄 (넘김)':(how.slice(10).replace('-','/')+'로 옮김');
-      const pick=(how.startsWith('date:'))?'':'<select class="cxsel" data-cxhow="'+r.it.id+'">'
-        +(r.it.once?'':'<option value="next"'+(how==='next'?' selected':'')+'>진도 다음 번으로 미룸</option>')
-        +'<option value="none"'+(how==='none'?' selected':'')+'>그냥 넘김 (진도 그대로)</option>'
-        +'<option value="date">다른 날에 보기…</option></select>';
+      const mv=how.startsWith('date:')?how.split(':'):null;          // ['date', '2026-11-11', 'keep'|'push', newId]
+      const lab=how==='next'?'다음 번으로 미룸':how==='none'?'안 봄 (넘김)'
+        :(mv[1].slice(5).replace('-','/')+'로 옮김'+(mv[2]==='push'?' · 진도 밀기':''));
+      const open=cxMove&&cxMove.id===r.it.id;
+      const pick=mv?'':'<select class="cxsel" data-cxhow="'+r.it.id+'">'
+        +(r.it.once?'':'<option value="next"'+(how==='next'&&!open?' selected':'')+'>진도 다음 번으로 미룸</option>')
+        +'<option value="none"'+(how==='none'&&!open?' selected':'')+'>그냥 넘김 (진도 그대로)</option>'
+        +'<option value="date"'+(open?' selected':'')+'>다른 날에 보기…</option></select>';
+      const panel=open?'<div class="cxpanel"><div class="fields" style="margin:0">'
+        +'<div style="grid-column:1/-1"><label>언제 볼까요</label><input type="date" id="cxw" value="'+esc(cxMove.when||shift(sel,1))+'"></div>'
+        +'</div><div class="toolbar" style="margin-top:8px"><button class="btn" data-cxmv="'+r.it.id+'">옮기기</button>'
+        +'<button class="btn ghost" data-cxmvx="1">취소</button></div></div>':'';
       h+='<div class="row cxrow"><div class="top">'
        +'<div class="code">'+esc(r.cls)+'</div><span class="cxtag">'+lab+'</span>'
        +'<div style="margin-left:auto;font-size:12px;color:var(--ink-soft)">'+(r.n||0)+'장</div></div>'
        +'<div class="what">'+content(r)+'</div>'
-       +'<div class="acts">'+(how.startsWith('date:')
-          ?'<button class="notebtn" data-cxgo="'+how.slice(5)+'">그날로 가보기</button>'
-          :pick+'<button class="notebtn" data-cxundo="'+r.it.id+'">되돌리기</button>')+'</div></div>';
+       +'<div class="acts">'+(mv
+          ?'<button class="notebtn" data-cxgo="'+mv[1]+'">그날로 가보기</button><button class="notebtn" data-cxundo="'+r.it.id+'">되돌리기</button>'
+          :pick+(open?'':'<button class="notebtn" data-cxundo="'+r.it.id+'">되돌리기</button>'))+'</div>'+panel+'</div>';
     });
     h+='</div>';
   }
@@ -1785,16 +1888,45 @@ function wire(){
     const it=cfg.items.find(x=>x.id===se.dataset.cxhow); if(!it)return;
     const v=se.value;
     it.skip=(it.skip||[]).filter(x=>x!==sel); it.hide=(it.hide||[]).filter(x=>x!==sel);
-    if(v==='date'){                                     // 날짜 고르는 칸을 띄움
-      if(it.cx){ delete it.cx[sel] }
-      edt={id:it.id,type:'off',v:'date'}; moreOpen[it.id]=true; await saveCfg(); render(); return;
+    if(v==='date'){                                     // 이 자리에서 날짜 고르는 칸을 엶 (아직 아무것도 안 바꿈)
+      if(it.cx&&it.cx[sel]==='next')it.skip.push(sel); else it.hide.push(sel);
+      cxMove={id:it.id,when:shift(sel,1),push:false}; render(); return;
     }
+    cxMove=null;
     if(v==='next')it.skip.push(sel); else it.hide.push(sel);
     it.cx[sel]=v; await saveCfg(); render(); toast(v==='next'?'다음 번으로 미뤘어요':'그냥 넘겼어요');
   });
   document.querySelectorAll('[data-cxgo]').forEach(b=>b.onclick=()=>go(b.dataset.cxgo));
+  const cxw=document.querySelector('#cxw'); if(cxw&&cxMove)cxw.onchange=()=>{cxMove.when=cxw.value};
+  document.querySelectorAll('input[name=cxp],input[name=ev4]').forEach(rb=>rb.onchange=()=>{
+    if(rb.name==='cxp'&&cxMove)cxMove.push=rb.value==='push';
+    if(rb.name==='ev4'&&edt){ edt.v4=rb.value; edt.v2=(document.querySelector('#ev2')||{}).value||edt.v2 }
+    if(rb.name==='cxp'&&cxMove)cxMove.when=(document.querySelector('#cxw')||{}).value||cxMove.when;
+    render();
+  });
+  const cxx=document.querySelector('[data-cxmvx]'); if(cxx)cxx.onclick=()=>{cxMove=null;render()};
+  const cxm=document.querySelector('[data-cxmv]');
+  if(cxm)cxm.onclick=async()=>{
+    const it=cfg.items.find(x=>x.id===cxm.dataset.cxmv); if(!it)return;
+    const when=(document.querySelector('#cxw')||{}).value;
+    if(!when){toast('날짜를 골라주세요');return}
+    if(when===sel){toast('같은 날이에요');return}
+    cxMove=null; await moveExam(it,when,false); render();
+    toast(when.slice(5).replace('-','/')+'로 옮겼어요');
+  };
   document.querySelectorAll('[data-cxundo]').forEach(b=>b.onclick=async()=>{
     const it=cfg.items.find(x=>x.id===b.dataset.cxundo); if(!it)return;
+    const how=(it.cx&&it.cx[sel])||'';
+    if(how.startsWith('date:')){
+      const [,when,,nid]=how.split(':');
+      if(nid){
+        cfg.items=cfg.items.filter(x=>x.id!==nid);
+        await loadLog(when.slice(0,7));
+        const lw=logs[when.slice(0,7)], e2=lw&&lw[when]&&lw[when][nid];
+        if(e2){ const lm=logs[sel.slice(0,7)]; lm[sel]=lm[sel]||{}; lm[sel][it.id]=e2; delete lw[when][nid] }
+      }
+    }
+    cxMove=null;
     it.skip=(it.skip||[]).filter(x=>x!==sel); it.hide=(it.hide||[]).filter(x=>x!==sel);
     if(it.cx){ delete it.cx[sel]; if(!Object.keys(it.cx).length)delete it.cx }
     await saveCfg(); render(); toast('되돌렸어요');
@@ -1876,7 +2008,7 @@ function wire(){
   if(eno)eno.onclick=()=>{edt=null;render()};
   const evsel=document.querySelector('#ev');
   if(evsel&&edt&&edt.type==='off')evsel.onchange=()=>{
-    edt.v=evsel.value;
+    edt.v=evsel.value; edt.v4=(document.querySelector('input[name=ev4]:checked')||{}).value||edt.v4;
     edt.v2=(document.querySelector('#ev2')||{}).value||'';
     render();
   };
@@ -1983,28 +2115,8 @@ function wire(){
         const when=(document.querySelector(t==='move'?'#ev':'#ev2')||{}).value;
         if(!when){toast('날짜를 골라주세요');return}
         if(when===sel){toast('같은 날이에요');return}
-        let newId=it.id;
-        if(it.once){ it.once=when; }
-        else{
-          const rr=resolve(it,sel,true);
-          const cp=Object.assign({},it);
-          delete cp.wd; delete cp.from; delete cp.skip; delete cp.hide; delete cp.did;
-          cp.id=newId='m'+Date.now(); cp.once=when;
-          if(rr&&rr.num!=null){ cp.base=rr.num; cp.anchor=when }
-          cfg.items.push(cp);
-          if(isHol(sel)) it.did=(it.did||[]).concat([sel]);
-          else{ it.hide=(it.hide||[]).concat([sel]); mark('date:'+when); }
-        }
-        const from=logs[mo], e2=from&&from[sel]&&from[sel][it.id];
-        if(e2){
-          await loadLog(when.slice(0,7));
-          const m2=when.slice(0,7);
-          logs[m2][when]=logs[m2][when]||{};
-          logs[m2][when][newId]=e2;
-          delete from[sel][it.id];
-          await saveLog(m2);
-        }
-        edt=null; await saveCfg(); await go(when);
+        await moveExam(it,when,false);
+        edt=null; await go(when);
         toast(when.slice(5).replace('-','/')+'로 옮겼어요'); return;
       }
       edt=null; await saveCfg(); render();
