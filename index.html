@@ -148,6 +148,33 @@
   .mvopt .t{color:var(--ink-soft);font-size:12px}
   .mvopt.on{border-color:var(--ink);background:#F4F4EF}
   .mvopt.on .t{color:var(--ink)}
+  .cxopts{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px}
+  .cxopt{font-family:inherit;font-size:13px;font-weight:600;min-height:40px;border:1.5px solid var(--grid);border-radius:4px;background:#fff;color:var(--ink);cursor:pointer;padding:6px 8px;line-height:1.25}
+  .cxopt small{display:block;font-size:11px;font-weight:400;color:var(--ink-soft)}
+  .cxopt.on{border-color:var(--ink);background:var(--ink);color:#fff}
+  .cxopt.on small{color:rgba(255,255,255,.75)}
+  .cxexp{margin-top:8px;font-size:13px;line-height:1.55;color:var(--ink);text-decoration:none}
+  .cxrow.editing,.cxrow:has(.cxopts){opacity:1}
+  .cxpanel label{display:block;font-size:12px;color:var(--ink-soft);margin-bottom:4px}
+  .cxpanel input[type=date]{width:100%;font-family:inherit;font-size:14px;padding:8px;border:1px solid var(--grid);border-radius:3px}
+  .cxalso .chk{display:flex;gap:6px;align-items:center;font-size:13px;color:var(--ink);margin:4px 0}
+  .cxrow .what.cxwhat{text-decoration:none;color:var(--ink-soft)}
+  .cxrow:has(.cxlist){opacity:1}
+  .cxq{margin-top:10px;font-size:14px;font-weight:700}
+  .cxnow{margin-top:8px;font-size:14px;font-weight:700}
+  .cxlist{margin-top:6px;display:flex;flex-direction:column;gap:6px}
+  .cxo{border:1.5px solid var(--grid);border-radius:6px;background:#fff;overflow:hidden}
+  .cxo.on{border-color:var(--ink);box-shadow:0 0 0 1px var(--ink) inset}
+  .cxob{display:flex;align-items:flex-start;gap:10px;width:100%;padding:10px 12px;border:none;background:none;font-family:inherit;text-align:left;cursor:pointer;color:var(--ink)}
+  .cxob .dot{flex:none;width:18px;height:18px;margin-top:1px;border-radius:50%;border:2px solid #9A9A92;background:#fff}
+  .cxo.on .cxob .dot{border-color:var(--ink);background:radial-gradient(var(--ink) 0 45%,#fff 50%)}
+  .cxob .tx{display:flex;flex-direction:column;gap:2px}
+  .cxob b{font-size:15px}
+  .cxob small{font-size:12px;color:var(--ink-soft)}
+  .cxbody{padding:0 12px 12px 40px}
+  .cxbody label{display:block;font-size:12px;color:var(--ink-soft);margin:2px 0 4px}
+  .cxbody input[type=date]{width:100%;font-family:inherit;font-size:14px;padding:8px;border:1px solid var(--grid);border-radius:3px}
+  .cxbody .cxexp{margin-top:6px}
   .cxpanel{margin-top:10px;padding:10px;border:1px solid var(--grid);border-radius:3px;background:#fff}
   .cxrow .cxpanel .what,.cxrow .cxpanel{text-decoration:none}
   .cxsel{font-family:inherit;font-size:13px;min-height:38px;border:1px solid rgba(0,0,0,.2);border-radius:3px;background:#fff;padding:0 6px}
@@ -932,22 +959,45 @@ function movePreview(it,d){
   }
   return null;
 }
-async function moveExam(it,when,push){
+/* 다른 날로 옮기기
+   · Day 시험(진도 있는 시험): 옮긴 날까지 사이에 있던 시험도 다 같이 밀림 → 원래 순서대로 이어짐
+     - 옮긴 날이 원래 시험 있는 요일이면 그날 그대로 이어서 봄
+     - 아닌 날이면 그날 따로 보고, 다음 정규 시험은 그다음 순서
+   · 단어·백지 등(진도 없는 시험): 그 시험만 그날로 옮기고 나머지는 그대로 */
+function copyFor(it,rr,when){
+  const cp=Object.assign({},it);
+  ['wd','wds','from','skip','hide','did','cx'].forEach(k=>delete cp[k]);
+  cp.id='m'+Date.now(); cp.once=when;
+  if(rr&&rr.num!=null){ cp.base=rr.num; cp.anchor=when;
+    if(it.pattern&&rr.seqFmt!=null){ const i=it.pattern.indexOf(rr.seqFmt); if(i>=0)cp.phase=i } }
+  return cp;
+}
+function planMove(it,when){                    // 실제로 바꾸지 않고 계획만
+  const clean=cleanOf(it,sel);
+  const rr=resolve(clean,sel);
+  const isDay=!!(rr&&rr.num!=null)&&when>sel&&!isHol(sel);
+  if(!isDay)return {isDay:false,rr,between:[],regular:false};
+  const between=[]; for(let d=shift(sel,1);d<when;d=shift(d,1)){ if(resolve(clean,d))between.push(d) }
+  const regular=!!resolve(Object.assign({},clean,{skip:clean.skip.concat([sel],between)}),when);
+  return {isDay:true,rr,between,regular};
+}
+async function moveExam(it,when){
   const mo=sel.slice(0,7);
   it.skip=(it.skip||[]).filter(x=>x!==sel); it.hide=(it.hide||[]).filter(x=>x!==sel);
   let newId=it.id;
   if(it.once){ it.once=when; if(it.cx){ delete it.cx[sel]; if(!Object.keys(it.cx).length)delete it.cx } }
   else{
-    const rr=resolve(it,sel,true);
-    const cp=Object.assign({},it);
-    ['wd','from','skip','hide','did','cx'].forEach(k=>delete cp[k]);
-    cp.id=newId='m'+Date.now(); cp.once=when;
-    if(rr&&rr.num!=null){ cp.base=rr.num; cp.anchor=when }
-    cfg.items.push(cp);
-    if(isHol(sel)) it.did=(it.did||[]).concat([sel]);
-    else{
-      if(push)it.skip.push(sel); else it.hide.push(sel);
-      it.cx=Object.assign({},it.cx); it.cx[sel]='date:'+when+':'+(push?'push':'keep')+':'+newId;
+    const pl=planMove(it,when);
+    it.cx=Object.assign({},it.cx);
+    if(pl.isDay){
+      if(pl.regular){ it.skip.push(sel); }                         // 그날 원래 시험 자리에서 이어서 봄
+      else{ const cp=copyFor(it,pl.rr,when); newId=cp.id; cfg.items.push(cp); it.hide.push(sel); }
+      pl.between.forEach(d=>{ it.skip.push(d); it.cx[d]='by:'+sel+':'+when });
+      it.cx[sel]='date:'+when+':shift:'+(newId===it.id?'':newId);
+    }else{
+      const cp=copyFor(it,pl.rr||resolve(it,sel,true),when); newId=cp.id; cfg.items.push(cp);
+      if(isHol(sel)) it.did=(it.did||[]).concat([sel]);
+      else{ it.hide.push(sel); it.cx[sel]='date:'+when+':keep:'+newId; }
     }
   }
   const from=logs[mo], e2=from&&from[sel]&&from[sel][it.id];
@@ -955,7 +1005,7 @@ async function moveExam(it,when,push){
     await loadLog(when.slice(0,7));
     const m2=when.slice(0,7);
     logs[m2][when]=logs[m2][when]||{};
-    logs[m2][when][newId]=e2;
+    logs[m2][when][newId]=Object.assign({},logs[m2][when][newId]||{},e2);
     delete from[sel][it.id];
   }
   await saveCfg();
@@ -973,9 +1023,87 @@ function moveChoiceHTML(it,idp,pushNow){
    +opt('push',pushNow,pv.push,'진도 한 칸 밀기')
    +'</div></div>';
 }
+/* 그날 해둔 처리(쉬기 기간·같이 밀린 날 포함)를 뺀 원래 상태 — 미리보기 계산용 */
+function cleanOf(it,d){
+  const how=(it.cx&&it.cx[d])||'', rel=[d];
+  if(how)Object.keys(it.cx).forEach(k=>{ const v=it.cx[k]; if(v===how&&how.startsWith('pause:'))rel.push(k); if(v.startsWith('by:'+d+':'))rel.push(k) });
+  return Object.assign({},it,{skip:(it.skip||[]).filter(x=>rel.indexOf(x)<0),hide:(it.hide||[]).filter(x=>rel.indexOf(x)<0)});
+}
+const cxMode=how=>how.startsWith('date:')?'date':how.startsWith('pause:')?'pause':how.startsWith('by:')?'by':how;
+const md=d=>d.slice(5).replace('-','/')+'('+DAYK[parse(d).getDay()]+')';
+/* 결과를 말로: "다음 시험 11/16(월)에 Day 22를 봐요" */
+/* 버튼 아래 작은 글씨: 다음 시험 때 보기 = "11/16 Day 22", 건너뛰기 = "11/16엔 Day 23" */
+function cxSubs(it){
+  if(it.once)return {next:'',none:''};
+  const clean=cleanOf(it,sel);
+  const occ=x=>{ for(let i=1;i<=120;i++){ const d=shift(sel,i), q=resolve(x,d); if(q)return {d,q} } return null };
+  const f=(o,pre)=>o?pre(o.d.slice(5).replace('-','/'))+(o.q.num!=null?' '+(o.q.ul||'Day')+' '+o.q.num:''):'';
+  return {
+    next:f(occ(Object.assign({},clean,{skip:clean.skip.concat([sel])})),d=>d),
+    none:f(occ(Object.assign({},clean,{hide:clean.hide.concat([sel])})),d=>d+'엔')
+  };
+}
+function cxExplain(it,mode,arg){
+  const clean=cleanOf(it,sel);
+  const cur=resolve(clean,sel); if(!cur)return '';
+  const lab=cur.num!=null?'<b>'+(cur.ul||'Day')+' '+cur.num+'</b>':'이 시험';
+  const occ=(x,from,to)=>{ for(let i=1;i<=120;i++){ const d=shift(from,i); if(to&&d>to)return null; const q=resolve(x,d); if(q)return {d,q} } return null };
+  const nl=q=>q&&q.num!=null?' '+(q.ul||'Day')+' '+q.num:'';
+  if(it.once){
+    if(mode==='date')return md(arg)+'에 '+lab+'를 봐요.';
+    return '이 시험은 안 봐요.';
+  }
+  if(mode==='next'){ const n=occ(Object.assign({},clean,{skip:clean.skip.concat([sel])}),sel);
+    return n?'다음 시험 '+md(n.d)+'에 '+lab+'를 봐요.':'다음 번에 봐요.' }
+  if(mode==='none'){ const n=occ(Object.assign({},clean,{hide:clean.hide.concat([sel])}),sel);
+    return lab+'는 건너뛰어요.'+(n?' 다음 시험 '+md(n.d)+'은'+nl(n.q)+'.':'') }
+  if(mode==='date'){ if(!arg)return '';
+    const pl=planMove(it,arg);
+    if(pl.isDay){
+      const sk=clean.skip.concat(pl.between,pl.regular?[sel]:[]), hd=pl.regular?clean.hide:clean.hide.concat([sel]);
+      const n=occ(Object.assign({},clean,{skip:sk,hide:hd}),arg);
+      return md(arg)+'에 '+lab+(cur.seqFmt?' '+esc(cur.seqFmt):'')+'를 보고, 그다음 시험들도 <b>원래 순서대로 밀려요</b>.'
+        +(pl.between.length?' (사이에 있던 시험 '+pl.between.length+'번도 같이 밀림)':'')
+        +(n?'<br>다음: '+md(n.d)+nl(n.q)+(n.q.seqFmt?' '+esc(n.q.seqFmt):''):'');
+    }
+    const n=occ(Object.assign({},clean,{hide:clean.hide.concat([sel])}),sel);
+    return md(arg)+'에 이 시험만 봐요. 다른 시험은 그대로예요.'+(n?' (다음 정규 시험 '+md(n.d)+nl(n.q)+')':'') }
+  if(mode==='by'){ const o=arg; return md(o)+' 시험을 미뤄서, 이 날 시험도 한 칸 뒤로 밀렸어요.' }
+  if(mode==='pause'){                    // arg = 다시 볼 날 (목록에선 저장된 끝날+1)
+    const back=arg; if(!back||back<=sel)return '다시 볼 날을 골라주세요.';
+    const end=shift(back,-1), sk=clean.skip.slice(); for(let d=sel;d<=end;d=shift(d,1))sk.push(d);
+    const n=occ(Object.assign({},clean,{skip:sk}),end);
+    return (n?md(n.d)+'부터 '+lab+(cur.seqFmt?' '+esc(cur.seqFmt):'')+'로 다시 시작해요.':'그때부터 다시 시작해요.')
+      +' 그 전까지는 이 시험을 안 봐요.' }
+  return '';
+}
+/* 그날 해둔 처리(미룸·넘김·옮김·쉬기)를 없애고 원래대로 */
+async function clearCx(it,d){
+  let how=(it.cx&&it.cx[d])||'';
+  if(how.startsWith('by:')){ const o=how.split(':')[1]; if(it.cx[o])return clearCx(it,o); delete it.cx[d]; it.skip=(it.skip||[]).filter(x=>x!==d); return }
+  if(how.startsWith('date:')){
+    const [,when,,nid]=how.split(':');
+    if(nid)cfg.items=cfg.items.filter(x=>x.id!==nid);
+    const key=nid||it.id;
+    await loadLog(when.slice(0,7));
+    const lw=logs[when.slice(0,7)], e2=lw&&lw[when]&&lw[when][key];
+    if(e2&&(nid||Object.keys(e2).length)){ await loadLog(d.slice(0,7)); const lm=logs[d.slice(0,7)]; lm[d]=lm[d]||{}; lm[d][it.id]=e2; delete lw[when][key] }
+    Object.keys(it.cx).filter(k=>it.cx[k]==='by:'+d+':'+when).forEach(k=>{ delete it.cx[k]; it.skip=(it.skip||[]).filter(x=>x!==k) });
+  }
+  if(how.startsWith('pause:')){                 // 쉬는 기간은 통째로 되돌림
+    const days=Object.keys(it.cx).filter(k=>it.cx[k]===how);
+    it.skip=(it.skip||[]).filter(x=>days.indexOf(x)<0);
+    days.forEach(k=>delete it.cx[k]);
+  }
+  it.skip=(it.skip||[]).filter(x=>x!==d); it.hide=(it.hide||[]).filter(x=>x!==d);
+  if(it.cx){ delete it.cx[d]; if(!Object.keys(it.cx).length)delete it.cx }
+}
 function cancelledOn(d){
   return cfg.items.filter(i=>i.cx&&i.cx[d]).map(i=>{
-    const tmp=Object.assign({},i,{skip:(i.skip||[]).filter(x=>x!==d),hide:(i.hide||[]).filter(x=>x!==d)});
+    // 밀린 날은 '원래 그날 볼 시험'을 보여주려고 미루기 전 상태로 계산
+    const how=i.cx[d], o=how.startsWith('by:')?how.split(':')[1]:null;
+    const undo=o?Object.keys(i.cx).filter(k=>k===o||i.cx[k]===how).concat([d]):[d];
+    const tmp=Object.assign({},i,{skip:(i.skip||[]).filter(x=>undo.indexOf(x)<0),hide:(i.hide||[]).filter(x=>undo.indexOf(x)<0)});
     const r=resolve(tmp,d); if(!r)return null;
     r.it=i; return {r,how:i.cx[d]};
   }).filter(Boolean).sort((a,b)=>rank(a.r)-rank(b.r)||cidx(a.r.cls)-cidx(b.r.cls));
@@ -1136,9 +1264,7 @@ function rowHTML(r){
   acts.push('<button class="notebtn'+((e.note||r.it.note)?' has':'')+'" data-edt="note|'+id+'">'
     +((e.note||r.it.note)?'특이사항 있음':'특이사항 적기')+'</button>');
   acts.push('<button class="notebtn" data-rt="'+id+'">재시험 잡기</button>');
-  more.push(r.it.once
-    ? '<button class="notebtn" data-edt="move|'+id+'">날짜 바꾸기</button>'
-    : '<button class="notebtn" data-edt="off|'+id+'">다른 날로 옮기기</button>');
+  if(r.it.once)more.push('<button class="notebtn" data-edt="move|'+id+'">날짜 바꾸기</button>');
   more.push('<button class="notebtn" data-edt="kind|'+id+'">종류 바꾸기</button>');
   more.push('<button class="notebtn danger" data-edt="del|'+id+'">'
     +(r.it.once?'이 시험 지우기':'매주 없애기')+'</button>');
@@ -1338,25 +1464,68 @@ function viewDay(){
   if(gone.length){
     h+='<div class="sec"><div class="sec-h"><b>오늘 안 보는 시험</b><span>'+gone.length+'개 · 잘못 뺐으면 되돌리기</span></div>';
     gone.forEach(({r,how})=>{
-      const mv=how.startsWith('date:')?how.split(':'):null;          // ['date', '2026-11-11', 'keep'|'push', newId]
-      const lab=how==='next'?'다음 번으로 미룸':how==='none'?'안 봄 (넘김)'
-        :(mv[1].slice(5).replace('-','/')+'로 옮김'+(mv[2]==='push'?' · 진도 밀기':''));
-      const open=cxMove&&cxMove.id===r.it.id;
-      const pick=mv?'':'<select class="cxsel" data-cxhow="'+r.it.id+'">'
-        +(r.it.once?'':'<option value="next"'+(how==='next'&&!open?' selected':'')+'>진도 다음 번으로 미룸</option>')
-        +'<option value="none"'+(how==='none'&&!open?' selected':'')+'>그냥 넘김 (진도 그대로)</option>'
-        +'<option value="date"'+(open?' selected':'')+'>다른 날에 보기…</option></select>';
-      const panel=open?'<div class="cxpanel"><div class="fields" style="margin:0">'
-        +'<div style="grid-column:1/-1"><label>언제 볼까요</label><input type="date" id="cxw" value="'+esc(cxMove.when||shift(sel,1))+'"></div>'
-        +'</div><div class="toolbar" style="margin-top:8px"><button class="btn" data-cxmv="'+r.it.id+'">옮기기</button>'
-        +'<button class="btn ghost" data-cxmvx="1">취소</button></div></div>':'';
-      h+='<div class="row cxrow"><div class="top">'
-       +'<div class="code">'+esc(r.cls)+'</div><span class="cxtag">'+lab+'</span>'
+      const it=r.it, mode=cxMode(how), open=cxMove&&cxMove.id===it.id?cxMove.mode:null;
+      const parts=how.split(':'), cur=open||mode, sb=cxSubs(it);
+      const pv=planMove(it,shift(sel,7)), isDay=pv.isDay;
+      const back=mode==='pause'?(parts[2]||shift(parts[1],1)):null;
+      // 고를 것: 문장으로 (처음 보는 사람도 알 수 있게)
+      const opts=it.once
+        ? [['date','날짜 정하기','날짜를 고르면 그날로 옮겨요'],['none','안 보기','이 시험은 없어져요']]
+        : isDay
+        ? [['next','다음 수업',sb.next+' · 진도가 한 번 기다려요'],
+           ['date','날짜 정하기','그 뒤 진도도 같이 밀려요'],
+           ['none','안 보기',sb.none],
+           ['pause','한동안 쉬기','시험대비 기간 등']]
+        : [['date','날짜 정하기','이 시험만 그날로 옮겨요'],          // 단어·백지 등: 진도가 없어서 '다음 수업에'는 '안 봄'과 같음
+           ['none','안 보기','이번만 빠져요. 다음 시험은 원래대로'],
+           ['pause','한동안 쉬기','시험대비 기간 등']];
+      h+='<div class="row cxrow'+(open?' editing':'')+'"><div class="top">'
+       +'<div class="code">'+esc(r.cls)+'</div>'
        +'<div style="margin-left:auto;font-size:12px;color:var(--ink-soft)">'+(r.n||0)+'장</div></div>'
-       +'<div class="what">'+content(r)+'</div>'
-       +'<div class="acts">'+(mv
-          ?'<button class="notebtn" data-cxgo="'+mv[1]+'">그날로 가보기</button><button class="notebtn" data-cxundo="'+r.it.id+'">되돌리기</button>'
-          :pick+(open?'':'<button class="notebtn" data-cxundo="'+r.it.id+'">되돌리기</button>'))+'</div>'+panel+'</div>';
+       +'<div class="what cxwhat">'+content(r)+'</div>';
+      if(mode==='by'){
+        h+='<div class="cxnow">'+parts[2].slice(5).replace('-','/')+'까지 밀렸어요</div>'
+         +'<div class="cxexp">'+cxExplain(it,'by',parts[1])+'</div>'
+         +'<div class="acts" style="margin-top:8px"><button class="notebtn" data-cxgo="'+parts[1]+'">미룬 날('+parts[1].slice(5).replace('-','/')+')로 가기</button>'
+         +'<button class="notebtn" data-cxundo="'+it.id+'">원래대로 되돌리기</button></div></div>';
+        return;
+      }
+      h+='<div class="cxq">이 시험, 언제 볼까요?</div><div class="cxlist">';
+      opts.forEach(([v,t,sub])=>{
+        const on=cur===v;
+        h+='<div class="cxo'+(on?' on':'')+'"><button class="cxob" data-cxopt="'+it.id+'|'+v+'">'
+          +'<span class="dot"></span><span class="tx"><b>'+t+'</b>'+(sub?'<small>'+sub+'</small>':'')+'</span></button>';
+        if(on){
+          h+='<div class="cxbody">';
+          if(open==='date'){
+            h+='<label>언제 볼까요</label><input type="date" id="cxw" value="'+esc(cxMove.when)+'">'
+             +'<div class="cxexp">'+cxExplain(it,'date',cxMove.when)+'</div>'
+             +'<div class="toolbar" style="margin-top:8px"><button class="btn" data-cxmv="'+it.id+'">이 날로 정하기</button>'
+             +'<button class="btn ghost" data-cxmvx="1">취소</button></div>';
+          }else if(open==='pause'){
+            const others=cfg.items.filter(x=>x.id!==it.id&&!x.once&&x.cls===it.cls&&resolve(Object.assign({},x,{skip:[],hide:[]}),sel));
+            h+='<label>언제부터 다시 보나요</label><input type="date" id="cxend" value="'+esc(cxMove.end)+'">'
+             +(others.length?'<label style="margin-top:8px">'+esc(it.cls)+'의 다른 시험도 같이 쉬기</label><div class="cxalso">'
+               +others.map(x=>{const rr=resolve(Object.assign({},x,{skip:[],hide:[]}),sel);
+                 return '<label class="chk"><input type="checkbox" data-cxalso="'+x.id+'"'+(cxMove.also[x.id]?' checked':'')+'> '
+                   +content(Object.assign(rr,{it:x})).replace(/<[^>]+>/g,'')+'</label>'}).join('')+'</div>':'')
+             +'<div class="cxexp">'+cxExplain(it,'pause',cxMove.end)+'</div>'
+             +'<div class="toolbar" style="margin-top:8px"><button class="btn" data-cxpz="'+it.id+'">이 날부터 다시 보기</button>'
+             +'<button class="btn ghost" data-cxmvx="1">취소</button></div>';
+          }else{
+            if(mode==='date'||mode==='pause'||it.once)h+='<div class="cxexp">✓ '+cxExplain(it,mode,mode==='pause'?back:parts[1])+'</div>';
+            h+=''
+             +(mode==='date'?'<div class="acts" style="margin-top:6px"><button class="notebtn" data-cxgo="'+parts[1]+'">그날로 가보기</button>'
+                +'<button class="notebtn" data-cxopt="'+it.id+'|date">날짜 바꾸기</button></div>':'')
+             +(mode==='pause'?'<div class="acts" style="margin-top:6px"><button class="notebtn" data-cxopt="'+it.id+'|pause">날짜 바꾸기</button></div>':'');
+          }
+          h+='</div>';
+        }
+        h+='</div>';
+      });
+      h+='</div>'
+       +(!open?'<div class="acts" style="margin-top:8px"><button class="notebtn" data-cxundo="'+it.id+'">취소하고 원래대로 오늘 봐요</button></div>':'')
+       +'</div>';
     });
     h+='</div>';
   }
@@ -1878,26 +2047,46 @@ function wire(){
     const it=cfg.items.find(x=>x.id===b.dataset.cx); if(!it)return;
     it.cx=Object.assign({},it.cx);
     if(it.once){ it.hide=(it.hide||[]).concat([sel]); it.cx[sel]='none' }      // 이 날만 있던 시험은 그냥 안 봄
-    else{ it.skip=(it.skip||[]).concat([sel]); it.cx[sel]='next' }             // 매주 시험은 진도를 다음 번으로 미룸
+    else{ const q=resolve(it,sel);
+      if(q&&q.num!=null){ it.skip=(it.skip||[]).concat([sel]); it.cx[sel]='next' }   // Day 시험: 다음 수업에 (진도 기다림)
+      else{ it.hide=(it.hide||[]).concat([sel]); it.cx[sel]='none' } }                 // 단어·백지: 이번만 안 봄
     const e=entry(sel,it.id);
     ['memo','val','note'].forEach(k=>{ if(saysNoTest(e[k]))delete e[k] });  // '시험X' 메모는 이제 필요 없음
     edt=null; await saveCfg(); render();
-    toast(it.once?'오늘 안 봐요':'오늘 안 봐요 · 진도는 다음 번으로');
+    toast(it.cx[sel]==='next'?'오늘 안 봐요 · 다음 수업에 봐요':'오늘 안 봐요');
   });
-  document.querySelectorAll('[data-cxhow]').forEach(se=>se.onchange=async()=>{
-    const it=cfg.items.find(x=>x.id===se.dataset.cxhow); if(!it)return;
-    const v=se.value;
-    it.skip=(it.skip||[]).filter(x=>x!==sel); it.hide=(it.hide||[]).filter(x=>x!==sel);
-    if(v==='date'){                                     // 이 자리에서 날짜 고르는 칸을 엶 (아직 아무것도 안 바꿈)
-      if(it.cx&&it.cx[sel]==='next')it.skip.push(sel); else it.hide.push(sel);
-      cxMove={id:it.id,when:shift(sel,1),push:false}; render(); return;
-    }
+  document.querySelectorAll('[data-cxopt]').forEach(bt=>bt.onclick=async()=>{
+    const [id,v]=bt.dataset.cxopt.split('|'), it=cfg.items.find(x=>x.id===id); if(!it)return;
+    const prev=((it.cx&&it.cx[sel])||'').split(':');
+    if(v==='date'){ cxMove={id,mode:'date',when:prev[0]==='date'?prev[1]:shift(sel,7)}; render(); return }
+    if(v==='pause'){ cxMove={id,mode:'pause',end:prev[0]==='pause'?(prev[2]||shift(prev[1],1)):shift(sel,14),also:{}}; render(); return }   // end = 다시 볼 날
     cxMove=null;
-    if(v==='next')it.skip.push(sel); else it.hide.push(sel);
-    it.cx[sel]=v; await saveCfg(); render(); toast(v==='next'?'다음 번으로 미뤘어요':'그냥 넘겼어요');
+    await clearCx(it,sel);
+    if(v==='next')it.skip=(it.skip||[]).concat([sel]); else it.hide=(it.hide||[]).concat([sel]);
+    it.cx=Object.assign({},it.cx); it.cx[sel]=v;
+    await saveCfg(); render(); toast(v==='next'?'다음 수업에 봐요':'안 봐요');
   });
+  const cxe=document.querySelector('#cxend'); if(cxe&&cxMove)cxe.onchange=()=>{cxMove.end=cxe.value;render()};
+  document.querySelectorAll('[data-cxalso]').forEach(c=>c.onchange=()=>{ if(cxMove)cxMove.also[c.dataset.cxalso]=c.checked });
+  const cxpz=document.querySelector('[data-cxpz]');
+  if(cxpz)cxpz.onclick=async()=>{
+    const back=(document.querySelector('#cxend')||{}).value;
+    if(!back||back<=sel){toast('다시 볼 날을 오늘 뒤로 골라주세요');return}
+    const end=shift(back,-1);
+    const ids=[cxpz.dataset.cxpz].concat(Object.keys(cxMove.also).filter(k=>cxMove.also[k]));
+    for(const id of ids){
+      const it=cfg.items.find(x=>x.id===id); if(!it)continue;
+      if(it.cx&&it.cx[sel])await clearCx(it,sel);
+      it.skip=it.skip||[]; it.cx=Object.assign({},it.cx);
+      for(let d=sel;d<=end;d=shift(d,1)){
+        if(resolve(it,d)){ it.skip.push(d); it.cx[d]='pause:'+end+':'+back }   // 안 보는 날은 진도에 안 셈 → 다시 볼 날부터 이어서
+      }
+    }
+    cxMove=null; await saveCfg(); render();
+    toast(back.slice(5).replace('-','/')+'부터 다시 봐요');
+  };
   document.querySelectorAll('[data-cxgo]').forEach(b=>b.onclick=()=>go(b.dataset.cxgo));
-  const cxw=document.querySelector('#cxw'); if(cxw&&cxMove)cxw.onchange=()=>{cxMove.when=cxw.value};
+  const cxw=document.querySelector('#cxw'); if(cxw&&cxMove)cxw.onchange=()=>{cxMove.when=cxw.value;render()};
   document.querySelectorAll('input[name=cxp],input[name=ev4]').forEach(rb=>rb.onchange=()=>{
     if(rb.name==='cxp'&&cxMove)cxMove.push=rb.value==='push';
     if(rb.name==='ev4'&&edt){ edt.v4=rb.value; edt.v2=(document.querySelector('#ev2')||{}).value||edt.v2 }
@@ -1911,24 +2100,12 @@ function wire(){
     const when=(document.querySelector('#cxw')||{}).value;
     if(!when){toast('날짜를 골라주세요');return}
     if(when===sel){toast('같은 날이에요');return}
-    cxMove=null; await moveExam(it,when,false); render();
+    cxMove=null; await clearCx(it,sel); await moveExam(it,when); render();
     toast(when.slice(5).replace('-','/')+'로 옮겼어요');
   };
   document.querySelectorAll('[data-cxundo]').forEach(b=>b.onclick=async()=>{
     const it=cfg.items.find(x=>x.id===b.dataset.cxundo); if(!it)return;
-    const how=(it.cx&&it.cx[sel])||'';
-    if(how.startsWith('date:')){
-      const [,when,,nid]=how.split(':');
-      if(nid){
-        cfg.items=cfg.items.filter(x=>x.id!==nid);
-        await loadLog(when.slice(0,7));
-        const lw=logs[when.slice(0,7)], e2=lw&&lw[when]&&lw[when][nid];
-        if(e2){ const lm=logs[sel.slice(0,7)]; lm[sel]=lm[sel]||{}; lm[sel][it.id]=e2; delete lw[when][nid] }
-      }
-    }
-    cxMove=null;
-    it.skip=(it.skip||[]).filter(x=>x!==sel); it.hide=(it.hide||[]).filter(x=>x!==sel);
-    if(it.cx){ delete it.cx[sel]; if(!Object.keys(it.cx).length)delete it.cx }
+    cxMove=null; await clearCx(it,sel);
     await saveCfg(); render(); toast('되돌렸어요');
   });
   document.querySelectorAll('[data-tt]').forEach(b=>b.onclick=()=>{ttDay=+b.dataset.tt;armed=null;render()});
@@ -2115,7 +2292,7 @@ function wire(){
         const when=(document.querySelector(t==='move'?'#ev':'#ev2')||{}).value;
         if(!when){toast('날짜를 골라주세요');return}
         if(when===sel){toast('같은 날이에요');return}
-        await moveExam(it,when,false);
+        await moveExam(it,when);
         edt=null; await go(when);
         toast(when.slice(5).replace('-','/')+'로 옮겼어요'); return;
       }
