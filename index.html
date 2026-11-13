@@ -681,19 +681,69 @@ async function pullAll(){
   rev = j.rev || 0;
   return j.data || {};
 }
-async function pushAll(){
-  const data = {cfg, logs};
-  if(!WORKER){ localStorage.setItem('tracker', JSON.stringify(data)); return }
-  rev++;
-  const r = await fetch(WORKER+'/sync', {method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({room:ROOM, rev, data})});
-  if(!r.ok) throw new Error('sync '+r.status);
-  const j = await r.json();
-  if(j && j.ok===false && j.data){       // 다른 분이 먼저 저장함 → 그쪽을 따름
-    rev = j.rev; cfg = j.data.cfg || cfg; logs = j.data.logs || logs;
-    toast('다른 분이 먼저 고쳐서 그걸 불러왔어요'); render();
-  }else if(j && j.rev){ rev = j.rev }
+/* ── 저장 · 합치기 ──
+   누르면 화면이 바로 바뀌고, 저장은 뒤에서 모아서 보냄.
+   다른 선생님이 먼저 저장했으면 버리지 않고 "내가 바꾼 것 + 그분이 바꾼 것"을 합침.
+   base = 마지막으로 서버와 맞춘 상태 (무엇을 내가 바꿨는지 비교용) */
+let base=null, laterRender=false;
+function softRender(){                         // 글 쓰는 중이면 끝난 뒤에 다시 그림 (쓰던 칸이 날아가지 않게)
+  const a=document.activeElement;
+  if(a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)){ if(!laterRender){ laterRender=true; a.addEventListener('blur',()=>{ laterRender=false; setTimeout(()=>{ if(!busy())render() },0) },{once:true}) } return }
+  render();
+}
+const clone=x=>JSON.parse(JSON.stringify(x||{}));
+function stable(x){                         // 키 순서·빈 칸에 상관없이 같은 내용이면 같은 글자
+  if(x===undefined||x===null)return '';
+  if(typeof x!=='object')return JSON.stringify(x);
+  if(Array.isArray(x))return '['+x.map(stable).join(',')+']';
+  const parts=[]; Object.keys(x).sort().forEach(k=>{ const v=stable(x[k]); if(v!=='')parts.push(JSON.stringify(k)+':'+v) });
+  return parts.length?'{'+parts.join(',')+'}':'';
+}
+const pick3=(b,l,sv)=>stable(l)===stable(b)?sv:l;   // 내가 안 바꿨으면 서버 것, 바꿨으면 내 것
+function mergeLv(b,l,sv,depth){
+  if(stable(l)===stable(b))return sv;
+  if(depth===0||!l||!sv||typeof l!=='object'||typeof sv!=='object')return l;
+  const out={}, keys=new Set([...Object.keys(b||{}),...Object.keys(l||{}),...Object.keys(sv||{})]);
+  keys.forEach(k=>{ const v=mergeLv((b||{})[k],(l||{})[k],(sv||{})[k],depth-1); if(stable(v)!=='')out[k]=v });
+  return out;
+}
+function merge3(b,l,sv){
+  b=b||{}; const bc=b.cfg||{}, lc=l.cfg||{}, sc=sv.cfg||{};
+  let cfgOut;
+  if(sc.v!==lc.v)cfgOut=lc;                  // 앱 버전이 다르면 내 설정 유지
+  else{
+    cfgOut={};
+    new Set([...Object.keys(bc),...Object.keys(lc),...Object.keys(sc)]).forEach(k=>{
+      if(k==='items')return;
+      const v=pick3(bc[k],lc[k],sc[k]); if(v!==undefined)cfgOut[k]=v;
+    });
+    const map=a=>{ const m={}; (a||[]).forEach(i=>{ if(i&&i.id)m[i.id]=i }); return m };
+    const bm=map(bc.items), lm=map(lc.items), sm=map(sc.items), items=[], seen={};
+    (sc.items||[]).concat(lc.items||[]).forEach(i=>{
+      if(!i||!i.id||seen[i.id])return; seen[i.id]=1;
+      const v=pick3(bm[i.id],lm[i.id],sm[i.id]); if(v)items.push(v);
+    });
+    cfgOut.items=items;
+  }
+  return {cfg:cfgOut, logs:mergeLv(b.logs||{},l.logs||{},sv.logs||{},3)};
+}
+async function pushOnce(){
+  const sent=JSON.stringify({cfg,logs});
+  const r=await fetch(WORKER+'/sync',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:'{"room":'+JSON.stringify(ROOM)+',"rev":'+(rev+1)+',"data":'+sent+'}'});
+  if(!r.ok)throw new Error('sync '+r.status);
+  const j=await r.json();
+  if(j&&j.ok===false&&j.data){                // 다른 분이 먼저 저장 → 합쳐서 다시 보냄
+    const m=merge3(base,{cfg,logs},j.data);
+    cfg=m.cfg; logs=m.logs; rev=j.rev; base=clone(j.data);
+    softRender(); return 'again';
+  }
+  rev=(j&&j.rev)||rev+1; base=JSON.parse(sent);
+  return 'ok';
+}
+async function pushAll(){                     // 처음 불러올 때 등 바로 저장할 때
+  if(!WORKER){ localStorage.setItem('tracker',JSON.stringify({cfg,logs})); return }
+  for(let i=0;i<5;i++){ if(await pushOnce()==='ok')return }
 }
 
 function shrink(file){
@@ -732,6 +782,7 @@ const imgSrc=v=> v.indexOf('data:')===0 ? v : WORKER+'/img?id='+v;
 async function load(){
   try{
     const st = await pullAll();
+    base = clone(st);
     if(st.logs) logs = st.logs;
     if(st.cfg && st.cfg.v===SEEDV) cfg = st.cfg;
     else if(st.cfg && st.cfg.v>SEEDV) cfg = st.cfg;           // 이 기기 앱이 더 옛날 — 손대지 않음
@@ -742,37 +793,54 @@ async function load(){
     toast('저장소에 연결 못 했어요 — 이 화면에서만 유지됩니다');
   }
 }
-/* 저장: 실패하면 잠깐 뒤 다시 시도. 예전엔 한 번 실패하면 그 뒤로 아무것도 저장 안 됐음 */
-let unsaved=false, retryT=null;
+/* 저장 큐: 여러 번 빨리 눌러도 하나씩 차례로, 마지막 상태까지 저장 */
+let unsaved=false, retryT=null, saving=false, again=false, debT=null, dirty=false;
 function saveBar(){                       // 저장 안 된 게 있으면 화면 아래에 계속 떠 있음
   let el=document.getElementById('savebar');
   if(!el){ el=document.createElement('div'); el.id='savebar';
     el.innerHTML='⚠ 저장이 안 됐어요 · 자동으로 다시 저장 중 <button>지금 다시</button>';
     document.body.appendChild(el);
-    el.querySelector('button').onclick=()=>saveAny(); }
+    el.querySelector('button').onclick=()=>flush(); }
   el.style.display=unsaved?'flex':'none';
 }
-async function trySave(){
-  for(const wait of [0,1500,4000]){
-    if(wait)await new Promise(r=>setTimeout(r,wait));
-    try{ await pushAll(); return true }catch(e){ lastSaveErr=e&&e.message||'' }
-  }
-  return false;
+function saveSoon(){
+  dirty=true;
+  if(!WORKER){ try{ localStorage.setItem('tracker',JSON.stringify({cfg,logs})) }catch(e){} dirty=false; return }
+  clearTimeout(debT); debT=setTimeout(()=>{ debT=null; flush() },250);
 }
-let lastSaveErr='';
-async function saveAny(){
-  if(await trySave()){
-    if(unsaved){ unsaved=false; saveBar(); toast('밀려 있던 것까지 저장했어요') }
-    clearTimeout(retryT); retryT=null; return;
-  }
-  unsaved=true; saveBar();
-  clearTimeout(retryT); retryT=setTimeout(()=>{ if(unsaved)saveAny() },15000);
+async function flush(){
+  if(memory||!WORKER)return;
+  if(saving){ again=true; return }
+  saving=true;
+  let fails=0, loops=0;
+  try{
+    while(loops++<8){
+      again=false;
+      try{
+        const res=await pushOnce();
+        if(res==='again'||again)continue;     // 합쳤거나 그 사이 또 바뀜 → 한 번 더
+        dirty=false;
+        if(unsaved){ unsaved=false; saveBar(); toast('밀려 있던 것까지 저장했어요') }
+        clearTimeout(retryT); retryT=null;
+        break;
+      }catch(e){
+        if(++fails>=3){
+          unsaved=true; saveBar();
+          clearTimeout(retryT); retryT=setTimeout(()=>{ if(unsaved)flush() },15000);
+          break;
+        }
+        await new Promise(r=>setTimeout(r,fails===1?1200:3500));
+      }
+    }
+  }finally{ saving=false }
+  if(again&&!unsaved)flush();
 }
-window.addEventListener('online',()=>{ if(unsaved)saveAny() });
-window.addEventListener('beforeunload',e=>{ if(unsaved){ e.preventDefault(); e.returnValue='' } });
-async function saveCfg(){ if(memory)return; await saveAny() }   // memory = 처음에 불러오기 실패 → 남의 데이터 덮어쓰지 않게 저장 안 함
+async function saveAny(){ saveSoon() }
+window.addEventListener('online',()=>{ if(unsaved)flush() });
+window.addEventListener('beforeunload',e=>{ if(unsaved||saving||debT){ e.preventDefault(); e.returnValue='' } });
+async function saveCfg(){ if(memory)return; saveSoon() }   // memory = 처음에 불러오기 실패 → 남의 데이터 덮어쓰지 않게 저장 안 함
 async function loadLog(mo){ if(!logs[mo]) logs[mo]={} }
-async function saveLog(){ if(memory)return; await saveAny() }
+async function saveLog(){ if(memory)return; saveSoon() }
 function entry(date,id){
   const mo=date.slice(0,7);
   const m=logs[mo]||(logs[mo]={});
@@ -2883,18 +2951,18 @@ window.addEventListener('focus', checkUpdate);
 /* ── 자동 동기화 ── */
 const busy=()=>addOpen||rtOpen||edt||armed||Object.keys(open).some(k=>open[k]);
 async function poll(){
-  if(!WORKER||memory||busy())return;
+  if(!WORKER||memory||saving||debT)return;
   if(document.hidden)return;
   try{
     const r=await fetch(WORKER+'/load?room='+encodeURIComponent(ROOM),{cache:'no-store'});
     if(!r.ok)return;
     const j=await r.json();
     if((j.rev||0)>rev && j.data){
-      rev=j.rev;
-      if(j.data.cfg&&j.data.cfg.v===SEEDV)cfg=j.data.cfg;
-      if(j.data.logs)logs=j.data.logs;
-      render();
-      toast('다른 분이 고친 내용을 받아왔어요');
+      if(saving||debT)return;                  // 그 사이 저장이 시작됐으면 저장 쪽이 합침
+      const m=merge3(base,{cfg,logs},j.data);   // 내가 안 바꾼 건 받아오고, 바꾼 건 지킴
+      cfg=m.cfg; logs=m.logs; rev=j.rev; base=clone(j.data);
+      if(dirty||unsaved)flush();
+      if(!busy())softRender();
     }
   }catch(e){}
 }
