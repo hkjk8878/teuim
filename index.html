@@ -175,6 +175,8 @@
   .cxbody label{display:block;font-size:12px;color:var(--ink-soft);margin:2px 0 4px}
   .cxbody input[type=date]{width:100%;font-family:inherit;font-size:14px;padding:8px;border:1px solid var(--grid);border-radius:3px}
   .cxbody .cxexp{margin-top:6px}
+  .kq{font-size:14px;font-weight:700;margin-bottom:6px}
+  .kall{display:flex;align-items:center;gap:6px;font-size:13px;margin-top:10px}
   .cxpanel{margin-top:10px;padding:10px;border:1px solid var(--grid);border-radius:3px;background:#fff}
   .cxrow .cxpanel .what,.cxrow .cxpanel{text-decoration:none}
   .cxsel{font-family:inherit;font-size:13px;min-height:38px;border:1px solid rgba(0,0,0,.2);border-radius:3px;background:#fff;padding:0 6px}
@@ -1172,7 +1174,7 @@ function content(r){
     return '<span style="color:var(--red);font-weight:700">'+roundName(r.it.round)+'</span>'
       +(w?' <span>'+esc(w)+'</span>':'');
   }
-  if(r.kind==='vocab')return '단어시험'+(r.src?' <span>· '+esc(r.src)+'</span>':'');
+  if(r.kind==='vocab'){ const v=r.src||entry(sel,r.it.id).val; return '단어시험'+(v?' <span>· '+esc(v)+'</span>':'') }
   if(r.kind==='blank'){
     const v=entry(sel,r.it.id).val||r.src;
     return '백지'+(v?' <span style="color:var(--ink-soft)">· '+esc(v)+'</span>':'');
@@ -1304,19 +1306,17 @@ function edtPanel(r){
     return box('<div class="fields" style="margin:0"><div><label>이 날 뽑을 장수 (반 '+(r.n||0)+'명)</label>'
       +'<input type="number" id="ev" value="'+esc(edt.v!=null?edt.v:qtyOf(r))+'"></div></div>', '장수 바꾸기');
   if(t==='kind'){
-    const cur=edt.v!=null?edt.v:vOf(r.it);
-    const c=choice(cur);
-    return box('<div class="fields" style="margin:0">'
-      +'<div><label>무슨 시험으로</label><select id="ev">'
-        +CHOICES.map(x=>'<option value="'+x.v+'"'+(cur===x.v?' selected':'')+'>'+x.t+'</option>').join('')
-        +'</select></div>'
-      +'<div><label>적용</label><select id="ev3">'
-        +'<option value="hold"'+(edt.v3==='hold'||!edt.v3?' selected':'')+'>오늘만 · 원래 건 다음으로 미룸</option>'
-        +'<option value="one"'+(edt.v3==='one'?' selected':'')+'>오늘만 · 원래 건 그냥 넘김</option>'
-        +'<option value="all"'+(edt.v3==='all'?' selected':'')+'>오늘부터 매주 계속</option></select></div>'
-      +'<div style="grid-column:1/-1"><label>'+(c.book||cur==='self'?'어디까지 (예: Day 5)':'범위 / 내용')+'</label>'
-      +'<textarea class="memo" id="ev2" style="margin-top:0" placeholder="비워도 돼요">'+esc(edt.v2!=null?edt.v2:(r.src||entry(sel,r.it.id).memo||'').trim())+'</textarea></div></div>',
-      '바꾸기');
+    /* 종류만 고르면 바로 바뀜. 범위·교재·사진·특이사항·메모는 묻지 않고 전부 그대로 넘어감 (바꾼 뒤에 고치면 됨) */
+    const cur=vOf(r.it), e=entry(sel,r.it.id);
+    const auto=(e.val||r.src||e.memo||(r.num!=null?(r.ul||'Day')+' '+r.num+(r.seqFmt?' '+r.seqFmt:''):'')).trim();
+    const isDay=!r.it.once&&r.num!=null;
+    return '<div class="rt"><div class="kq">무슨 시험으로 바꿀까요?</div>'
+      +'<div class="names">'+CHOICES.filter(x=>x.v!==cur).map(x=>'<button class="nm" data-kto="'+x.v+'">'+esc(x.t)+'</button>').join('')+'</div>'
+      +(r.it.once?'':'<label class="chk kall"><input type="checkbox" id="kall"'+(edt.v3==='all'?' checked':'')+'> 오늘부터 매주 이걸로 바꾸기</label>')
+      +'<input type="hidden" id="ev"><input type="hidden" id="ev3" value="'+(isDay?'hold':'one')+'">'
+      +'<textarea id="ev2" style="display:none">'+esc(auto)+'</textarea>'
+      +'<div class="toolbar" style="margin:8px 0 0"><button class="btn ghost" data-eno="1">취소</button>'
+      +'<button data-eok="1" style="display:none"></button></div></div>';
   }
   if(t==='tch'){
     return box('<div class="fields" style="margin:0"><div style="grid-column:1/-1">'
@@ -2189,6 +2189,12 @@ function wire(){
     edt.v2=(document.querySelector('#ev2')||{}).value||'';
     render();
   };
+  document.querySelectorAll('[data-kto]').forEach(bt=>bt.onclick=()=>{
+    document.querySelector('#ev').value=bt.dataset.kto;
+    const all=document.querySelector('#kall'); if(all&&all.checked)document.querySelector('#ev3').value='all';
+    document.querySelector('[data-eok]').click();
+  });
+  const kall=document.querySelector('#kall'); if(kall&&edt)kall.onchange=()=>{ edt.v3=kall.checked?'all':'' };
   if(evsel&&edt&&edt.type==='kind')evsel.onchange=()=>{
     edt.v=evsel.value;
     edt.v2=(document.querySelector('#ev2')||{}).value||'';
@@ -2256,23 +2262,26 @@ function wire(){
         if((a.imgs||[]).length)b.imgs=(b.imgs||[]).concat(a.imgs);
       };
       const scope=(document.querySelector('#ev3')||{}).value||'hold';
+      // 원래 시험의 교재·특이사항을 그대로 가져감 (예전엔 반 이름·장수만 넘어가서 지워졌음)
+      const r0=resolve(it,sel,true), oldBook=r0?rowBook(Object.assign(r0,{it})):'';
+      const keepInfo=x=>{ if(oldBook&&!x.ownBook&&oldBook!==bookOf(x.cls,sel))x.ownBook=oldBook; if(it.note&&!x.note)x.note=it.note; return x };
       if(scope==='all'){
-        applyChoice(it,v,sel,text); it.sure=true;
+        keepInfo(it); applyChoice(it,v,sel,text); it.sure=true;
         if(it.once){ it.wd=parse(it.once).getDay(); it.from=it.once; delete it.once }
       }else if(scope==='hold'&&!it.once){
-        const cp={id:'k'+Date.now(),cls:it.cls,once:sel,n:it.n,sure:true,off:false};
+        const cp=keepInfo({id:'k'+Date.now(),cls:it.cls,once:sel,n:it.n,sure:true,off:false});
         applyChoice(cp,v,sel,text);
         cfg.items.push(cp); carry(cp.id);
         it.skip=(it.skip||[]).concat([sel]);
       }else if(it.once){
-        applyChoice(it,v,sel,text); it.sure=true;
+        keepInfo(it); applyChoice(it,v,sel,text); it.sure=true;
       }else{
-        const cp={id:'k'+Date.now(),cls:it.cls,once:sel,n:it.n,sure:true,off:false};
+        const cp=keepInfo({id:'k'+Date.now(),cls:it.cls,once:sel,n:it.n,sure:true,off:false});
         applyChoice(cp,v,sel,text);
         cfg.items.push(cp); carry(cp.id);
         it.hide=(it.hide||[]).concat([sel]);
       }
-      edt=null; await saveCfg(); render(); toast('바꿨어요'); return;
+      edt=null; await saveCfg(); render(); toast('바꿨어요 · 내용은 그대로예요'); return;
     }
     if(t==='del'){
       if(it.once){
